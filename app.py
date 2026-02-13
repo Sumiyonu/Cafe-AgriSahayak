@@ -14,7 +14,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration for file uploads
-UPLOAD_FOLDER = 'static/uploads'
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB limit
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -96,6 +97,10 @@ def upload_image():
         return jsonify({"error": "File type not allowed"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/static/uploads/<path:filename>')
+def serve_uploads(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/api/menu-items', methods=['GET'])
 def get_menu_items():
