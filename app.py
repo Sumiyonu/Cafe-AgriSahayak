@@ -1,16 +1,26 @@
 import os
 from datetime import datetime, date
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 from pymongo import MongoClient
 from bson import ObjectId
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+# Configuration for file uploads
+UPLOAD_FOLDER = 'static/uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB limit
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # MongoDB Setup
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -44,6 +54,39 @@ def format_doc(doc):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/api/upload-image', methods=['POST'])
+def upload_image():
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image part"}), 400
+        file = request.files['image']
+        item_id = request.form.get('item_id')
+        
+        if not item_id:
+            return jsonify({"error": "No item_id provided"}), 400
+            
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+            
+        if file and allowed_file(file.filename):
+            filename = secure_filename(f"item_{item_id}_{file.filename}")
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            
+            # Ensure folder exists
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            
+            file.save(filepath)
+            
+            # Update database
+            image_url = f"/static/uploads/{filename}"
+            menu_items.update_one({"item_id": int(item_id)}, {"$set": {"image_url": image_url}})
+            
+            return jsonify({"message": "Image uploaded successfully", "image_url": image_url})
+            
+        return jsonify({"error": "File type not allowed"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/menu-items', methods=['GET'])
 def get_menu_items():
@@ -99,13 +142,14 @@ def daily_dashboard():
                 "_id": None,
                 "total_revenue": {"$sum": "$price"},
                 "total_profit": {"$sum": "$profit"},
+                "total_cost": {"$sum": "$cost"},
                 "order_count": {"$sum": 1},
                 "avg_order_value": {"$avg": "$price"}
             }}
         ]
         
         stats = list(sales.aggregate(pipeline))
-        summary = stats[0] if stats else {"total_revenue": 0, "total_profit": 0, "order_count": 0, "avg_order_value": 0}
+        summary = stats[0] if stats else {"total_revenue": 0, "total_profit": 0, "total_cost": 0, "order_count": 0, "avg_order_value": 0}
         
         # Category breakdown
         cat_pipeline = [
@@ -121,10 +165,15 @@ def daily_dashboard():
         ]
         time_slots = list(sales.aggregate(time_pipeline))
         
+        # Get cumulative sales data
+        sales_data = list(sales.find({"date": target_date}, {"price": 1, "_id": 0}).sort("timestamp", 1))
+        prices = [s['price'] for s in sales_data]
+        
         return jsonify({
             "summary": summary,
             "categories": categories,
-            "time_slots": time_slots
+            "time_slots": time_slots,
+            "sales_data": prices
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -142,12 +191,13 @@ def monthly_dashboard():
                 "_id": None,
                 "total_revenue": {"$sum": "$price"},
                 "total_profit": {"$sum": "$profit"},
+                "total_cost": {"$sum": "$cost"},
                 "order_count": {"$sum": 1}
             }}
         ]
         
         stats = list(sales.aggregate(pipeline))
-        summary = stats[0] if stats else {"total_revenue": 0, "total_profit": 0, "order_count": 0}
+        summary = stats[0] if stats else {"total_revenue": 0, "total_profit": 0, "total_cost": 0, "order_count": 0}
         
         # Trend
         trend_pipeline = [
@@ -157,7 +207,15 @@ def monthly_dashboard():
         ]
         trend = list(sales.aggregate(trend_pipeline))
         
-        return jsonify({"summary": summary, "trend": trend})
+        # Get cumulative sales data
+        sales_data = list(sales.find({"month": month, "year": year}, {"price": 1, "_id": 0}).sort("timestamp", 1))
+        prices = [s['price'] for s in sales_data]
+
+        return jsonify({
+            "summary": summary, 
+            "trend": trend,
+            "sales_data": prices
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

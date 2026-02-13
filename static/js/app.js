@@ -9,7 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateDateTime, 1000);
     loadMenuItems();
     setupTooltips();
+    setupUploadHandlers();
 });
+
+let activeUploadItemId = null;
 
 function updateDateTime() {
     const now = new Date();
@@ -37,8 +40,7 @@ function navigateTo(tabId) {
         'sales-entry': 'Sales Entry',
         'daily-view': 'Daily Dashboard',
         'monthly-view': 'Monthly Dashboard',
-        'yearly-view': 'Yearly Dashboard',
-        'time-view': 'Time Intelligence'
+        'yearly-view': 'Yearly Dashboard'
     };
     document.getElementById('page-title').textContent = titles[tabId];
 
@@ -48,7 +50,6 @@ function navigateTo(tabId) {
     if (tabId === 'daily-view') loadDailyDashboard();
     if (tabId === 'monthly-view') loadMonthlyDashboard();
     if (tabId === 'yearly-view') loadYearlyDashboard();
-    if (tabId === 'time-view') loadTimeIntelligence();
 }
 
 // --- Sales Entry Logic ---
@@ -70,14 +71,67 @@ function renderMenu(items) {
     items.forEach(item => {
         const card = document.createElement('div');
         card.className = `menu-item-card category-${item.category.toLowerCase().replace(/\s+/g, '-')}`;
+
+        // Use provided image or a generic placeholder
+        const imageUrl = item.image_url || `https://via.placeholder.com/150?text=${encodeURIComponent(item.name)}`;
+
         card.innerHTML = `
+            <div class="upload-icon" title="Upload Image" onclick="triggerUpload(event, ${item.item_id})">
+                <i class="fas fa-camera"></i>
+            </div>
+            <div class="item-image-box">
+                <img src="${imageUrl}" alt="${item.name}">
+            </div>
+            <div class="category-badge bg-light text-dark shadow-sm">${item.category}</div>
             <div class="fw-bold">${item.name}</div>
-            <div class="text-muted extra-small mb-1">${item.category}</div>
-            <div class="text-muted small mb-2" style="font-size: 0.75rem;">${item.description || ''}</div>
-            <div class="fw-bold text-primary">₹${item.price.toFixed(2)}</div>
+            <div class="text-muted small mb-2" style="font-size: 0.75rem; min-height: 2.5rem;">${item.description || ''}</div>
+            <div class="fw-bold text-primary mb-2">₹${item.price.toFixed(2)}</div>
+            <button class="order-btn" onclick="recordSale(event, ${item.item_id}, '${item.name.replace(/'/g, "\\'")}')">
+                <i class="fas fa-check-circle"></i> Complete Sale
+            </button>
         `;
-        card.onclick = () => recordSale(item.item_id, item.name);
         container.appendChild(card);
+    });
+}
+
+function triggerUpload(event, itemId) {
+    event.stopPropagation();
+    activeUploadItemId = itemId;
+    document.getElementById('global-file-input').click();
+}
+
+function setupUploadHandlers() {
+    const fileInput = document.getElementById('global-file-input');
+    if (!fileInput) return;
+
+    fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file || !activeUploadItemId) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('item_id', activeUploadItemId);
+
+        try {
+            showToast('Uploading image...', 'info');
+            const response = await fetch('/api/upload-image', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                showToast('Image uploaded successfully!', 'success');
+                loadMenuItems(); // Reload to show new image
+            } else {
+                showToast(result.error || 'Upload failed', 'danger');
+            }
+        } catch (error) {
+            showToast('Upload error', 'danger');
+        } finally {
+            fileInput.value = ''; // Reset input
+            activeUploadItemId = null;
+        }
     });
 }
 
@@ -96,7 +150,12 @@ function filterMenu(category) {
     }
 }
 
-async function recordSale(itemId, itemName) {
+async function recordSale(event, itemId, itemName) {
+    if (event) event.stopPropagation();
+
+    // Confirmation
+    if (!confirm(`Record complete sale for ${itemName}?`)) return;
+
     try {
         const response = await fetch('/api/record-sale', {
             method: 'POST',
@@ -121,23 +180,25 @@ async function loadDailyDashboard() {
     const data = await response.json();
 
     const s = data.summary;
-    document.getElementById('daily-revenue').textContent = `₹${s.total_revenue.toFixed(2)}`;
-    document.getElementById('daily-profit').textContent = `₹${s.total_profit.toFixed(2)}`;
+    // document.getElementById('daily-revenue').textContent = `₹${s.total_revenue.toFixed(2)}`;
+    // document.getElementById('daily-profit').textContent = `₹${s.total_profit.toFixed(2)}`;
     document.getElementById('daily-orders').textContent = s.order_count;
-    document.getElementById('daily-avg').textContent = `₹${(s.avg_order_value || 0).toFixed(2)}`;
+    document.getElementById('daily-cost').textContent = `₹${(s.total_cost || 0).toFixed(2)}`;
+    // document.getElementById('daily-avg').textContent = `₹${(s.avg_order_value || 0).toFixed(2)}`;
 
-    updateDailyCharts(data);
+    renderPerformanceGraph('dailyAmountGraph', data.sales_data, 'Daily Revenue', 100000, '#FF6600');
 }
 
 async function loadMonthlyDashboard() {
     const response = await fetch('/api/monthly-dashboard');
     const data = await response.json();
 
-    document.getElementById('monthly-revenue').textContent = `₹${data.summary.total_revenue.toFixed(2)}`;
-    document.getElementById('monthly-profit').textContent = `₹${data.summary.total_profit.toFixed(2)}`;
+    // document.getElementById('monthly-revenue').textContent = `₹${data.summary.total_revenue.toFixed(2)}`;
+    // document.getElementById('monthly-profit').textContent = `₹${data.summary.total_profit.toFixed(2)}`;
     document.getElementById('monthly-orders').textContent = data.summary.order_count;
+    document.getElementById('monthly-cost').textContent = `₹${(data.summary.total_cost || 0).toFixed(2)}`;
 
-    updateMonthlyCharts(data);
+    renderPerformanceGraph('monthlyAmountGraph', data.sales_data, 'Monthly Revenue', 1000000, '#FF00FF');
 }
 
 async function loadYearlyDashboard() {
@@ -145,33 +206,21 @@ async function loadYearlyDashboard() {
     const data = await response.json();
 
     const s = data.summary;
-    document.getElementById('yearly-revenue').textContent = `₹${s.total_revenue.toFixed(2)}`;
-    document.getElementById('yearly-profit').textContent = `₹${s.total_profit.toFixed(2)}`;
+    // document.getElementById('yearly-revenue').textContent = `₹${s.total_revenue.toFixed(2)}`;
+    // document.getElementById('yearly-profit').textContent = `₹${s.total_profit.toFixed(2)}`;
     document.getElementById('yearly-orders').textContent = s.order_count;
 
-    const margin = s.total_revenue > 0 ? (s.total_profit / s.total_revenue * 100).toFixed(1) : 0;
-    document.getElementById('yearly-margin').textContent = `${margin}%`;
+    // const margin = s.total_revenue > 0 ? (s.total_profit / s.total_revenue * 100).toFixed(1) : 0;
+    // document.getElementById('yearly-margin').textContent = `${margin}%`;
 
-    updateYearlyCharts(data);
+    // updateYearlyCharts(data); // Removed chart
 }
 
-async function loadTimeIntelligence() {
-    const response = await fetch('/api/time-intelligence');
-    const data = await response.json();
 
-    updateTimeIntelligenceCharts(data);
-    renderTimeHeatmap(data);
-}
 
 // --- Chart Rendering ---
 
 function updateDailyCharts(data) {
-    // Time Slot Chart
-    const timeLabels = data.time_slots.map(t => t._id);
-    const timeCounts = data.time_slots.map(t => t.count);
-
-    renderChart('dailyTimeChart', 'bar', timeLabels, timeCounts, 'Orders by Time Slot', '#6d4c41');
-
     // Category Chart
     const catLabels = data.categories.map(c => c._id);
     const catRevenue = data.categories.map(c => c.revenue);
@@ -179,12 +228,7 @@ function updateDailyCharts(data) {
     renderChart('dailyCategoryChart', 'doughnut', catLabels, catRevenue, 'Revenue by Category', ['#6d4c41', '#8d6e63', '#ffab91', '#4caf50', '#ff9800']);
 }
 
-function updateMonthlyCharts(data) {
-    const labels = data.trend.map(t => t._id.split('-')[2]); // Just day
-    const values = data.trend.map(t => t.revenue);
 
-    renderChart('monthlyTrendChart', 'line', labels, values, 'Daily Revenue Trend', '#1976d2');
-}
 
 function updateYearlyCharts(data) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -203,11 +247,74 @@ function updateYearlyCharts(data) {
     ]);
 }
 
-function updateTimeIntelligenceCharts(data) {
-    const labels = data.map(d => d._id);
-    const values = data.map(d => d.avg_profit);
 
-    renderChart('timeProfitChart', 'polarArea', labels, values, 'Average Profit per Transaction', ['#673ab7', '#3f51b5', '#2196f3', '#00bcd4', '#009688']);
+
+function renderPerformanceGraph(canvasId, rawData, label, yLimit, color) {
+    if (charts[canvasId]) charts[canvasId].destroy();
+
+    // Data Transformation: Cumulative Total
+    let cumulative = 0;
+    const data = rawData.map(val => {
+        cumulative += val;
+        return cumulative;
+    });
+
+    const labels = rawData.map((_, i) => `Order ${i + 1}`);
+
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    charts[canvasId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                borderColor: color,
+                borderWidth: 3,
+                fill: false,
+                tension: 0,
+                pointRadius: 5,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: color,
+                pointBorderWidth: 2,
+                pointStyle: 'circle'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    title: { display: true, text: 'Number of Orders', font: { weight: 'bold' } },
+                    grid: { display: true, color: '#e0e0e0' }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: yLimit,
+                    title: { display: true, text: 'Amount (₹)', font: { weight: 'bold' } },
+                    grid: { display: true, color: '#e0e0e0' },
+                    ticks: {
+                        callback: function (value) {
+                            return '₹' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            return `Total Amount: ₹${context.parsed.y.toLocaleString()}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 function renderChart(canvasId, type, labels, data, label, colors) {
@@ -231,6 +338,13 @@ function renderChart(canvasId, type, labels, data, label, colors) {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: type === 'doughnut' || type === 'polarArea' }
+            },
+            elements: {
+                line: {
+                    tension: 0.4, // Smooth curves
+                    fill: type === 'line' ? 'start' : false,
+                    backgroundColor: type === 'line' ? 'rgba(109, 76, 65, 0.1)' : colors
+                }
             }
         }
     });
@@ -254,22 +368,7 @@ function renderMultiChart(canvasId, labels, datasets) {
     });
 }
 
-function renderTimeHeatmap(data) {
-    const container = document.getElementById('time-heatmap');
-    container.innerHTML = '<div class="table-responsive"><table class="table table-sm text-center"><thead><tr><th>Time Slot</th><th>Orders</th><th>Revenue</th></tr></thead><tbody id="heatmap-body"></tbody></table></div>';
 
-    const body = document.getElementById('heatmap-body');
-    data.sort((a, b) => b.revenue - a.revenue).forEach(d => {
-        const row = document.createElement('tr');
-        const heat = Math.min(d.count * 10, 100);
-        row.innerHTML = `
-            <td>${d._id}</td>
-            <td><span class="badge" style="background: rgba(109, 76, 65, ${heat / 100})">${d.count}</span></td>
-            <td>₹${d.revenue.toFixed(2)}</td>
-        `;
-        body.appendChild(row);
-    });
-}
 
 // --- Utilities ---
 
