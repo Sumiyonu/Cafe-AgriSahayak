@@ -297,6 +297,129 @@
         }
 
         /* Responsive Improvements */
+        .modal-content {
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #6F4E37 0%, #3e2723 100%);
+            color: white;
+            border-bottom: none;
+            padding: 1.5rem 2rem;
+        }
+
+        .modal-body {
+            padding: 2.5rem 2rem;
+            background-color: #F5ECE3;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .payment-card {
+            background: white;
+            border-radius: 18px;
+            padding: 1.5rem;
+            border: 2px solid transparent;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .payment-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(111, 78, 55, 0.15);
+            border-color: #D4A373;
+        }
+
+        .payment-card i {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            transition: transform 0.3s ease;
+        }
+
+        .payment-card:hover i {
+            transform: scale(1.1);
+        }
+
+        .payment-card.active {
+            border-color: #6F4E37;
+            background: linear-gradient(135deg, #fff 0%, #F5ECE3 100%);
+            transform: scale(1.02);
+        }
+
+        .payment-card.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .card-label {
+            font-weight: 600;
+            color: #3e2723;
+        }
+
+        /* Animations */
+        .modal.fade .modal-dialog {
+            transform: scale(0.95);
+            transition: transform 0.3s ease-out;
+        }
+
+        .modal.show .modal-dialog {
+            transform: scale(1);
+        }
+
+        .backdrop-blur {
+            backdrop-filter: blur(6px);
+        }
+
+        .btn-close-white {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+
+        #payment-modal-item-name {
+            color: #6F4E37;
+            margin-bottom: 2rem;
+            font-weight: 600;
+        }
+
+        .success-checkmark {
+            display: none;
+            font-size: 4rem;
+            color: #4CAF50;
+            margin-bottom: 1rem;
+            animation: bounceIn 0.5s ease;
+        }
+
+        @keyframes bounceIn {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            70% {
+                transform: scale(0.9);
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
         @media (max-width: 992px) {
             #sidebar {
                 left: -280px;
@@ -375,62 +498,101 @@
 
         <!-- Daily Dashboard Section -->
         <section id="daily-view" class="dashboard-section">
-            <div class="row g-4 mb-5">
-
-                <div class="col-md-6">
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold text-brown">Select Date</label>
+                    <input type="date" id="daily-date-filter" class="form-control" onchange="loadDailyDashboard()">
+                </div>
+            </div>
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
                     <div class="stat-card">
-                        <div class="stat-icon icon-orders"><i class="fas fa-shopping-bag"></i></div>
+                        <div class="stat-icon icon-orders"><i class="fas fa-box-open"></i></div>
                         <div class="stat-value" id="daily-orders">0</div>
-                        <div class="stat-label">Order Count</div>
+                        <div class="stat-label">📦 Order Count</div>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-3">
                     <div class="stat-card">
-                        <div class="stat-icon icon-avg"><i class="fas fa-calculator"></i></div>
-                        <div class="stat-value" id="daily-cost">₹0.00</div>
-                        <div class="stat-label">Daily Order Cost</div>
+                        <div class="stat-icon icon-revenue"><i class="fas fa-coins"></i></div>
+                        <div class="stat-value" id="daily-revenue">₹0.00</div>
+                        <div class="stat-label">💰 Total Revenue</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-avg text-primary"><i class="fas fa-mobile-alt"></i></div>
+                        <div class="stat-value text-primary" id="daily-phonepe">₹0.00</div>
+                        <div class="stat-label">📱 PhonePe Amount</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-profit text-success"><i class="fas fa-money-bill-wave"></i></div>
+                        <div class="stat-value text-success" id="daily-cash">₹0.00</div>
+                        <div class="stat-label">💵 Cash Amount</div>
                     </div>
                 </div>
             </div>
-            <div class="row g-4">
-                <div class="col-12">
-                    <div class="stat-card">
-                        <h5>Cumulative Revenue Growth Trend</h5>
-                        <canvas id="dailyAmountGraph" height="250"></canvas>
-                    </div>
-                </div>
-            </div>
-
         </section>
 
         <!-- Monthly Dashboard Section -->
         <section id="monthly-view" class="dashboard-section">
+            <div class="row mb-4 g-3">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-brown">Select Month</label>
+                    <select id="monthly-month-filter" class="form-select" onchange="loadMonthlyDashboard()">
+                        <option value="01">January</option>
+                        <option value="02">February</option>
+                        <option value="03">March</option>
+                        <option value="04">April</option>
+                        <option value="05">May</option>
+                        <option value="06">June</option>
+                        <option value="07">July</option>
+                        <option value="08">August</option>
+                        <option value="09">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-brown">Select Year</label>
+                    <select id="monthly-year-filter" class="form-select" onchange="loadMonthlyDashboard()">
+                        <!-- Years will be injected -->
+                    </select>
+                </div>
+            </div>
             <div class="row g-4 mb-4">
-
-                <div class="col-md-6">
+                <div class="col-md-3">
                     <div class="stat-card">
                         <div class="stat-icon icon-orders"><i class="fas fa-receipt"></i></div>
                         <div class="stat-value" id="monthly-orders">0</div>
-                        <div class="stat-label">Transactions</div>
+                        <div class="stat-label">📦 Order Count</div>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-3">
                     <div class="stat-card">
-                        <div class="stat-icon icon-avg"><i class="fas fa-calculator"></i></div>
-                        <div class="stat-value" id="monthly-cost">₹0.00</div>
-                        <div class="stat-label">Monthly Order Cost</div>
+                        <div class="stat-icon icon-revenue"><i class="fas fa-wallet"></i></div>
+                        <div class="stat-value" id="monthly-revenue">₹0.00</div>
+                        <div class="stat-label">💰 Monthly Revenue</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-avg text-primary"><i class="fas fa-mobile-alt"></i></div>
+                        <div class="stat-value text-primary" id="monthly-phonepe">₹0.00</div>
+                        <div class="stat-label">📱 PhonePe Amount</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-profit text-success"><i class="fas fa-piggy-bank"></i></div>
+                        <div class="stat-value text-success" id="monthly-cash">₹0.00</div>
+                        <div class="stat-label">💵 Cash Amount</div>
                     </div>
                 </div>
             </div>
-            <div class="row g-4">
-                <div class="col-12">
-                    <div class="stat-card">
-                        <h5>Cumulative Revenue Growth Trend</h5>
-                        <canvas id="monthlyAmountGraph" height="250"></canvas>
-                    </div>
-                </div>
-            </div>
-
         </section>
 
         <!-- Yearly Dashboard Section -->
@@ -449,6 +611,46 @@
 
 
     </main>
+
+    <!-- Payment Confirmation Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Confirm Payment</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="payment-selection-ui">
+                        <p id="payment-modal-item-name" class="fs-4"></p>
+                        <div class="row g-4">
+                            <div class="col-6">
+                                <div class="payment-card" onclick="confirmSale('Cash', this)">
+                                    <i class="fas fa-money-bill-wave text-success"></i>
+                                    <span class="card-label">Cash</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="payment-card" onclick="confirmSale('PhonePe', this)">
+                                    <i class="fas fa-mobile-alt text-primary"></i>
+                                    <span class="card-label">PhonePe</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="payment-success-ui" style="display: none;">
+                        <div class="success-checkmark d-block">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h3 class="fw-bold" style="color: #6F4E37;">Order Placed!</h3>
+                        <p class="text-muted">Transaction recorded successfully.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Toast UI -->
     <div class="toast-container">

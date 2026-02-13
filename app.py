@@ -1,14 +1,14 @@
 import os
+from dotenv import load_dotenv
+from pymongo import MongoClient
+
+load_dotenv()
+
 from datetime import datetime, date
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
-from pymongo import MongoClient
 from bson import ObjectId
-from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
-
-# Load environment variables
-load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -23,9 +23,18 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # MongoDB Setup
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+MONGO_URI = os.getenv("MONGO_URI")
+
 client = MongoClient(MONGO_URI)
-db = client.get_database("cafe_management")
+
+# Test Connection (Very Important)
+try:
+    client.admin.command('ping')
+    print("✅ MongoDB Connected Successfully!")
+except Exception as e:
+    print("❌ MongoDB Connection Failed:", e)
+
+db = client.get_database()
 menu_items = db.menu_items
 sales = db.sales
 
@@ -91,13 +100,8 @@ def upload_image():
 @app.route('/api/menu-items', methods=['GET'])
 def get_menu_items():
     try:
-        category = request.args.get('category')
-        query = {}
-        if category:
-            query['category'] = category
-        
-        items = list(menu_items.find(query))
-        return jsonify([format_doc(i) for i in items])
+        items = list(menu_items.find({}, {"_id": 0}))
+        return jsonify(items)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -106,7 +110,11 @@ def record_sale():
     try:
         data = request.json
         item_id = data.get('item_id')
+        payment_method = data.get('payment_method', 'Cash')
         
+        if payment_method not in ['Cash', 'PhonePe']:
+            return jsonify({"error": "Invalid payment method. Only Cash and PhonePe are allowed."}), 400
+
         item = menu_items.find_one({"item_id": item_id})
         if not item:
             return jsonify({"error": "Item not found"}), 404
@@ -117,8 +125,7 @@ def record_sale():
             "name": item['name'],
             "category": item['category'],
             "price": item['price'],
-            "cost": item['cost'],
-            "profit": round(item['price'] - item['cost'], 2),
+            "payment_method": payment_method,
             "timestamp": now,
             "date": now.strftime("%Y-%m-%d"),
             "month": now.strftime("%m"),
@@ -141,40 +148,16 @@ def daily_dashboard():
             {"$group": {
                 "_id": None,
                 "total_revenue": {"$sum": "$price"},
-                "total_profit": {"$sum": "$profit"},
-                "total_cost": {"$sum": "$cost"},
                 "order_count": {"$sum": 1},
-                "avg_order_value": {"$avg": "$price"}
+                "cash_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "Cash"]}, "$price", 0]}},
+                "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}}
             }}
         ]
         
         stats = list(sales.aggregate(pipeline))
-        summary = stats[0] if stats else {"total_revenue": 0, "total_profit": 0, "total_cost": 0, "order_count": 0, "avg_order_value": 0}
+        result = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
         
-        # Category breakdown
-        cat_pipeline = [
-            {"$match": {"date": target_date}},
-            {"$group": {"_id": "$category", "count": {"$sum": 1}, "revenue": {"$sum": "$price"}}}
-        ]
-        categories = list(sales.aggregate(cat_pipeline))
-        
-        # Time slot breakdown
-        time_pipeline = [
-            {"$match": {"date": target_date}},
-            {"$group": {"_id": "$time_slot", "count": {"$sum": 1}}}
-        ]
-        time_slots = list(sales.aggregate(time_pipeline))
-        
-        # Get cumulative sales data
-        sales_data = list(sales.find({"date": target_date}, {"price": 1, "_id": 0}).sort("timestamp", 1))
-        prices = [s['price'] for s in sales_data]
-        
-        return jsonify({
-            "summary": summary,
-            "categories": categories,
-            "time_slots": time_slots,
-            "sales_data": prices
-        })
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -190,32 +173,16 @@ def monthly_dashboard():
             {"$group": {
                 "_id": None,
                 "total_revenue": {"$sum": "$price"},
-                "total_profit": {"$sum": "$profit"},
-                "total_cost": {"$sum": "$cost"},
-                "order_count": {"$sum": 1}
+                "order_count": {"$sum": 1},
+                "cash_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "Cash"]}, "$price", 0]}},
+                "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}}
             }}
         ]
         
         stats = list(sales.aggregate(pipeline))
-        summary = stats[0] if stats else {"total_revenue": 0, "total_profit": 0, "total_cost": 0, "order_count": 0}
+        result = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
         
-        # Trend
-        trend_pipeline = [
-            {"$match": {"month": month, "year": year}},
-            {"$group": {"_id": "$date", "revenue": {"$sum": "$price"}}},
-            {"$sort": {"_id": 1}}
-        ]
-        trend = list(sales.aggregate(trend_pipeline))
-        
-        # Get cumulative sales data
-        sales_data = list(sales.find({"month": month, "year": year}, {"price": 1, "_id": 0}).sort("timestamp", 1))
-        prices = [s['price'] for s in sales_data]
-
-        return jsonify({
-            "summary": summary, 
-            "trend": trend,
-            "sales_data": prices
-        })
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -229,7 +196,6 @@ def yearly_dashboard():
             {"$group": {
                 "_id": "$month",
                 "revenue": {"$sum": "$price"},
-                "profit": {"$sum": "$profit"},
                 "count": {"$sum": 1}
             }},
             {"$sort": {"_id": 1}}
@@ -242,12 +208,11 @@ def yearly_dashboard():
             {"$group": {
                 "_id": None,
                 "total_revenue": {"$sum": "$price"},
-                "total_profit": {"$sum": "$profit"},
                 "order_count": {"$sum": 1}
             }}
         ]
         overall = list(sales.aggregate(overall_pipeline))
-        summary = overall[0] if overall else {"total_revenue": 0, "total_profit": 0, "order_count": 0}
+        summary = overall[0] if overall else {"total_revenue": 0, "order_count": 0}
         
         return jsonify({"summary": summary, "monthly_breakdown": monthly_data})
     except Exception as e:
@@ -260,8 +225,7 @@ def time_intelligence():
             {"$group": {
                 "_id": "$time_slot",
                 "revenue": {"$sum": "$price"},
-                "count": {"$sum": 1},
-                "avg_profit": {"$avg": "$profit"}
+                "count": {"$sum": 1}
             }}
         ]
         

@@ -5,9 +5,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def seed_database():
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+    mongo_uri = os.getenv("MONGO_URI")
     client = MongoClient(mongo_uri)
-    db = client.get_database("cafe_management")
+    db = client.get_database()
     
     # Collections
     menu_collection = db.menu_items
