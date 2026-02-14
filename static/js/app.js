@@ -42,7 +42,7 @@ function initFilters() {
     if (yearSelect) {
         const currentYear = now.getFullYear();
         yearSelect.innerHTML = '';
-        for (let i = currentYear; i >= currentYear - 2; i--) {
+        for (let i = currentYear + 2; i >= 2024; i--) {
             const opt = document.createElement('option');
             opt.value = i;
             opt.textContent = i;
@@ -56,7 +56,7 @@ function initFilters() {
     if (staffYearSelect) {
         const currentYear = now.getFullYear();
         staffYearSelect.innerHTML = '<option value="">All Years</option>';
-        for (let i = currentYear; i >= currentYear - 2; i--) {
+        for (let i = currentYear + 2; i >= 2024; i--) {
             const opt = document.createElement('option');
             opt.value = i;
             opt.textContent = i;
@@ -64,8 +64,6 @@ function initFilters() {
         }
     }
 }
-
-let activeUploadItemId = null;
 
 function updateDateTime() {
     const now = new Date();
@@ -76,7 +74,8 @@ function updateDateTime() {
 function navigateTo(tabId) {
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
-        if (link.getAttribute('onclick').includes(tabId)) {
+        const onclickAttr = link.getAttribute('onclick');
+        if (onclickAttr && onclickAttr.includes(tabId)) {
             link.classList.add('active');
         }
     });
@@ -110,7 +109,6 @@ async function loadMenuItems() {
     try {
         const response = await fetch('/api/menu-items');
         allMenuItems = await response.json();
-        console.log("Menu Items Loaded:", allMenuItems);
         renderMenu(allMenuItems);
     } catch (error) {
         console.error('Error loading menu:', error);
@@ -129,12 +127,13 @@ function renderMenu(items) {
 
     items.forEach(item => {
         const card = document.createElement('div');
-        card.className = `menu-item-card category-${item.category.toLowerCase().replace(/\s+/g, '-')}`;
+        const catClass = item.category.toLowerCase().replace(/\s+/g, '-');
+        card.className = `menu-item-card category-${catClass}`;
 
         const imageUrl = item.image_url || `https://via.placeholder.com/150?text=${encodeURIComponent(item.name)}`;
 
         card.innerHTML = `
-            <div class="upload-icon" title="Upload Image" onclick="triggerUpload(event, ${item.item_id})">
+            <div class="upload-icon" title="Upload Image" onclick="triggerUpload(event, '${item.item_id}')">
                 <i class="fas fa-camera"></i>
             </div>
             <div class="item-image-box">
@@ -142,10 +141,9 @@ function renderMenu(items) {
             </div>
             <div class="category-badge bg-light text-dark shadow-sm">${item.category}</div>
             <div class="fw-bold">${item.name}</div>
-            <div class="text-muted small mb-2" style="font-size: 0.75rem; min-height: 2.5rem;">${item.description || ''}</div>
             <div class="fw-bold text-primary mb-2">₹${(item.price || 0).toFixed(2)}</div>
-            <button class="order-btn" onclick="openPaymentModal(${item.item_id}, '${(item.name || 'Item').replace(/'/g, "\\'")}')">
-                <i class="fas fa-check-circle"></i> Complete Sale
+            <button class="order-btn" onclick="openPaymentModal('${item.item_id}', '${(item.name || 'Item').replace(/'/g, "\\'")}')">
+                <i class="fas fa-plus me-1"></i> ADD SALE
             </button>
         `;
         container.appendChild(card);
@@ -164,7 +162,6 @@ function openPaymentModal(itemId, itemName) {
     });
 
     const modalEl = document.getElementById('paymentModal');
-    modalEl.classList.add('backdrop-blur');
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
 }
@@ -183,7 +180,6 @@ async function confirmSale(paymentMethod, element) {
         });
 
         if (response.ok) {
-            // Success animation
             document.getElementById('payment-selection-ui').style.display = 'none';
             document.getElementById('payment-success-ui').style.display = 'block';
 
@@ -193,7 +189,7 @@ async function confirmSale(paymentMethod, element) {
                 const modalEl = document.getElementById('paymentModal');
                 const modal = bootstrap.Modal.getInstance(modalEl);
                 if (modal) modal.hide();
-            }, 1500);
+            }, 1000);
         } else {
             const errorData = await response.json();
             showToast(errorData.error || 'Failed to record sale', 'danger');
@@ -224,18 +220,17 @@ function setupUploadHandlers() {
         formData.append('item_id', activeUploadItemId);
 
         try {
-            showToast('Uploading image...', 'info');
+            showToast('Uploading...', 'info');
             const response = await fetch('/api/upload-image', {
                 method: 'POST',
                 body: formData
             });
 
-            const result = await response.json();
             if (response.ok) {
-                showToast('Image uploaded successfully!', 'success');
+                showToast('Uploaded!', 'success');
                 loadMenuItems();
             } else {
-                showToast(result.error || 'Upload failed', 'danger');
+                showToast('Upload failed', 'danger');
             }
         } catch (error) {
             showToast('Upload error', 'danger');
@@ -267,10 +262,15 @@ async function loadDailyDashboard() {
     const response = await fetch(`/api/daily-dashboard?date=${date}`);
     const data = await response.json();
 
-    document.getElementById('daily-revenue').textContent = `₹${(data.total_revenue || 0).toFixed(2)}`;
-    document.getElementById('daily-orders').textContent = data.order_count || 0;
-    document.getElementById('daily-phonepe').textContent = `₹${(data.phonepe_amount || 0).toFixed(2)}`;
-    document.getElementById('daily-cash').textContent = `₹${(data.cash_amount || 0).toFixed(2)}`;
+    const summary = data.summary;
+    document.getElementById('daily-revenue').textContent = `₹${(summary.total_revenue || 0).toFixed(2)}`;
+    document.getElementById('daily-orders').textContent = summary.order_count || 0;
+    document.getElementById('daily-phonepe').textContent = `₹${(summary.phonepe_amount || 0).toFixed(2)}`;
+    document.getElementById('daily-cash').textContent = `₹${(summary.cash_amount || 0).toFixed(2)}`;
+
+    // Update Charts
+    updateChart('daily-item-chart', 'bar', data.items.map(i => i._id), data.items.map(i => i.count), 'Units Sold', '#6d4c41');
+    updateChart('daily-category-chart', 'pie', data.categories.map(c => c._id), data.categories.map(c => c.count), 'Categories', ['#6d4c41', '#8d6e63', '#ffab91', '#ff9800', '#4caf50']);
 }
 
 async function loadMonthlyDashboard() {
@@ -280,16 +280,34 @@ async function loadMonthlyDashboard() {
     const response = await fetch(`/api/monthly-dashboard?month=${month}&year=${year}`);
     const data = await response.json();
 
-    document.getElementById('monthly-revenue').textContent = `₹${(data.total_revenue || 0).toFixed(2)}`;
-    document.getElementById('monthly-orders').textContent = data.order_count || 0;
-    document.getElementById('monthly-phonepe').textContent = `₹${(data.phonepe_amount || 0).toFixed(2)}`;
-    document.getElementById('monthly-cash').textContent = `₹${(data.cash_amount || 0).toFixed(2)}`;
+    const summary = data.summary;
+    document.getElementById('monthly-revenue').textContent = `₹${(summary.total_revenue || 0).toFixed(2)}`;
+    document.getElementById('monthly-orders').textContent = summary.order_count || 0;
+    document.getElementById('monthly-phonepe').textContent = `₹${(summary.phonepe_amount || 0).toFixed(2)}`;
+    document.getElementById('monthly-cash').textContent = `₹${(summary.cash_amount || 0).toFixed(2)}`;
+
+    // Update Charts
+    updateChart('monthly-trend-chart', 'line', data.trend.map(t => t._id.split('-')[2]), data.trend.map(t => t.revenue), 'Daily Revenue', '#6d4c41');
+    updateChart('monthly-category-chart', 'bar', data.categories.map(c => c._id), data.categories.map(c => c.revenue), 'Revenue by Category', '#8d6e63');
 }
 
 async function loadYearlyDashboard() {
     const response = await fetch('/api/yearly-dashboard');
     const data = await response.json();
-    document.getElementById('yearly-orders').textContent = data.summary.order_count || 0;
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    const summary = data.summary;
+    document.getElementById('yearly-revenue').textContent = `₹${(summary.total_revenue || 0).toFixed(2)}`;
+
+    const bestMonthName = data.best_month !== "None" ? monthNames[parseInt(data.best_month) - 1] : 'N/A';
+    document.getElementById('yearly-best-month').textContent = bestMonthName;
+    document.getElementById('yearly-top-item').textContent = data.top_product || 'N/A';
+
+    const labels = data.monthly_breakdown.map(m => monthNames[parseInt(m._id) - 1]);
+    const values = data.monthly_breakdown.map(m => m.revenue);
+
+    updateChart('yearly-trend-chart', 'line', labels, values, 'Monthly Revenue', '#ffab91');
 }
 
 async function loadStaffPerformance() {
@@ -310,7 +328,7 @@ async function loadStaffPerformance() {
         tbody.innerHTML = '';
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No sales found for the selected criteria</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No sales found</td></tr>';
             return;
         }
 
@@ -329,9 +347,55 @@ async function loadStaffPerformance() {
             tbody.appendChild(tr);
         });
     } catch (error) {
-        console.error('Error loading performance:', error);
-        showToast('Error loading performance data', 'danger');
+        showToast('Error loading performance', 'danger');
     }
+}
+
+function updateChart(chartId, type, labels, data, label, color) {
+    const ctx = document.getElementById(chartId);
+    if (!ctx) return;
+
+    if (charts[chartId]) {
+        charts[chartId].destroy();
+    }
+
+    charts[chartId] = new Chart(ctx, {
+        type: type,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: data,
+                backgroundColor: Array.isArray(color) ? color : color + 'CC',
+                borderColor: Array.isArray(color) ? '#fff' : color,
+                borderWidth: 2,
+                tension: 0.3,
+                fill: type === 'line'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: type === 'pie'
+                }
+            },
+            scales: type === 'pie' ? {} : {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
 }
 
 function resetStaffFilters() {
@@ -340,8 +404,6 @@ function resetStaffFilters() {
     document.getElementById('staff-year-filter').value = '';
     loadStaffPerformance();
 }
-
-// --- Utilities ---
 
 function showToast(message, type = 'success') {
     const toastEl = document.getElementById('liveToast');

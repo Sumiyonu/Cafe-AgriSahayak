@@ -562,6 +562,20 @@
                     </div>
                 </div>
             </div>
+            <div class="row g-4 mb-4">
+                <div class="col-md-8">
+                    <div class="stat-card">
+                        <h5 class="fw-bold mb-4">Item Distribution Today</h5>
+                        <canvas id="daily-item-chart" height="300"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <h5 class="fw-bold mb-4">Category Mix</h5>
+                        <canvas id="daily-category-chart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- Monthly Dashboard Section -->
@@ -621,15 +635,54 @@
                     </div>
                 </div>
             </div>
+            <div class="row g-4 mb-4">
+                <div class="col-md-12">
+                    <div class="stat-card">
+                        <h5 class="fw-bold mb-4">Daily Revenue Trend</h5>
+                        <canvas id="monthly-trend-chart" height="350"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-4 mb-4">
+                <div class="col-md-12">
+                    <div class="stat-card">
+                        <h5 class="fw-bold mb-4">Category Performance</h5>
+                        <canvas id="monthly-category-chart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- Yearly Dashboard Section -->
         <section id="yearly-view" class="dashboard-section">
             <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-revenue"><i class="fas fa-coins"></i></div>
+                        <div class="stat-value" id="yearly-revenue">₹0.00</div>
+                        <div class="stat-label">💰 Annual Revenue</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-orders"><i class="fas fa-star"></i></div>
+                        <div class="stat-value" id="yearly-best-month">None</div>
+                        <div class="stat-label">🌟 Best Month</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-item text-primary"><i class="fas fa-trophy"></i></div>
+                        <div class="stat-value text-primary" id="yearly-top-item">None</div>
+                        <div class="stat-label">🏆 Top Product</div>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-4 mb-4">
                 <div class="col-md-12">
-                    <div class="stat-card text-center">
-                        <h6 class="text-muted">Total Sales (Yearly)</h6>
-                        <h2 id="yearly-orders" class="fw-bold">0</h2>
+                    <div class="stat-card">
+                        <h5 class="fw-bold mb-4">Monthly Performance Trend</h5>
+                        <canvas id="yearly-trend-chart" height="350"></canvas>
                     </div>
                 </div>
             </div>

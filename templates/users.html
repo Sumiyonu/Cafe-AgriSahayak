@@ -142,6 +142,10 @@
                     <td>${date}</td>
                     <td class="${statusClass}"><i class="fas ${statusIcon} me-1"></i> ${user.is_active ? 'Active' : 'Deactivated'}</td>
                     <td class="text-end pe-4">
+                        <button class="btn btn-sm btn-outline-warning me-1" 
+                                onclick="resetPasswordPrompt('${user.username}')">
+                            <i class="fas fa-key"></i> Reset
+                        </button>
                         <button class="btn btn-sm ${user.is_active ? 'btn-outline-danger' : 'btn-outline-success'}" 
                                 onclick="toggleStatus('${user.username}')">
                             ${user.is_active ? 'Deactivate' : 'Activate'}
@@ -183,6 +187,24 @@
             const result = await response.json();
             if (response.ok) {
                 loadUsers();
+            } else {
+                alert(result.error);
+            }
+        }
+
+        async function resetPasswordPrompt(username) {
+            const newPassword = prompt(`Enter new password for ${username}:`);
+            if (!newPassword) return;
+
+            const response = await fetch('/api/admin/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password: newPassword })
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                alert(result.message);
             } else {
                 alert(result.error);
             }

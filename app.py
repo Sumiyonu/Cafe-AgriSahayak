@@ -14,6 +14,7 @@ from functools import wraps
 load_dotenv()
 
 app = Flask(__name__)
+app.config["DEBUG"] = True
 app.secret_key = os.getenv("SECRET_KEY", secrets.token_hex(24))
 CORS(app)
 bcrypt = Bcrypt(app)
@@ -78,16 +79,10 @@ def admin_required(f):
 # --- Helper Functions ---
 
 def get_time_slot(hour):
-    if 5 <= hour < 11:
-        return "Morning (5am-11am)"
-    elif 11 <= hour < 14:
-        return "Lunch (11am-2pm)"
-    elif 14 <= hour < 17:
-        return "Afternoon (2pm-5pm)"
-    elif 17 <= hour < 21:
-        return "Evening (5pm-9pm)"
-    else:
-        return "Late Night (9pm-5am)"
+    if 6 <= hour < 12: return "Morning"
+    if 12 <= hour < 17: return "Afternoon"
+    if 17 <= hour < 22: return "Evening"
+    return "Unknown"
 
 def format_doc(doc):
     if not doc:
@@ -134,12 +129,18 @@ def login():
             return render_template("login.html", error=error_msg)
             
         except Exception as e:
-            print("Login Error:", e)
+            import traceback
+            traceback.print_exc()
+            error_details = f"Login Error: {str(e)}"
             if request.is_json:
-                return jsonify({"error": "Server error. Please try again."}), 500
-            return render_template("login.html", error="Server error. Please try again.")
+                return jsonify({"error": error_details}), 500
+            return error_details
     
     return render_template('login.html')
+
+@app.route('/health')
+def health():
+    return "OK", 200
 
 @app.route('/logout')
 @login_required
@@ -230,11 +231,30 @@ def toggle_user_status():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/admin/reset-password', methods=['POST'])
+@admin_required
+def reset_password():
+    try:
+        data = request.json
+        target_username = data.get('username')
+        new_password = data.get('password')
+        
+        if not target_username or not new_password:
+            return jsonify({"error": "Missing username or password"}), 400
+            
+        users.update_one(
+            {"username": target_username},
+            {"$set": {"password": bcrypt.generate_password_hash(new_password).decode('utf-8')}}
+        )
+        return jsonify({"message": f"Password for {target_username} reset successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # --- Default User Bootstrap Logic ---
 if users.count_documents({}) == 0:
     admin_user = {
-        "username": "DI1:1133557799",
-        "password": bcrypt.generate_password_hash("2244668800").decode('utf-8'),
+        "username": "admin",
+        "password": bcrypt.generate_password_hash("admin123").decode('utf-8'),
         "role": "admin",
         "created_by": "system",
         "created_at": datetime.now(),
@@ -242,10 +262,10 @@ if users.count_documents({}) == 0:
     }
     
     staff_user = {
-        "username": "0088664422",
-        "password": bcrypt.generate_password_hash("9977553311").decode('utf-8'),
+        "username": "staff1",
+        "password": bcrypt.generate_password_hash("staff123").decode('utf-8'),
         "role": "staff",
-        "created_by": "DI1:1133557799",
+        "created_by": "admin",
         "created_at": datetime.now(),
         "is_active": True
     }
@@ -381,6 +401,7 @@ def daily_dashboard():
     try:
         target_date = request.args.get('date', datetime.now().strftime("%Y-%m-%d"))
         
+        # Core Stats
         pipeline = [
             {"$match": {"date": target_date}},
             {"$group": {
@@ -393,9 +414,29 @@ def daily_dashboard():
         ]
         
         stats = list(sales.aggregate(pipeline))
-        result = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
+        summary = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
         
-        return jsonify(result)
+        # Item Distribution (Top 10)
+        item_pipeline = [
+            {"$match": {"date": target_date}},
+            {"$group": {"_id": "$name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 10}
+        ]
+        items = list(sales.aggregate(item_pipeline))
+        
+        # Category Distribution
+        cat_pipeline = [
+            {"$match": {"date": target_date}},
+            {"$group": {"_id": "$category", "count": {"$sum": 1}}}
+        ]
+        categories = list(sales.aggregate(cat_pipeline))
+        
+        return jsonify({
+            "summary": summary,
+            "items": items,
+            "categories": categories
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -407,6 +448,7 @@ def monthly_dashboard():
         month = request.args.get('month', now.strftime("%m"))
         year = request.args.get('year', now.strftime("%Y"))
         
+        # Summary
         pipeline = [
             {"$match": {"month": month, "year": year}},
             {"$group": {
@@ -417,11 +459,41 @@ def monthly_dashboard():
                 "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}}
             }}
         ]
-        
         stats = list(sales.aggregate(pipeline))
-        result = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
+        summary = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
         
-        return jsonify(result)
+        # Daily Trend
+        trend_pipeline = [
+            {"$match": {"month": month, "year": year}},
+            {"$group": {"_id": "$date", "revenue": {"$sum": "$price"}}},
+            {"$sort": {"_id": 1}}
+        ]
+        trend = list(sales.aggregate(trend_pipeline))
+        
+        # Category Performance
+        cat_pipeline = [
+            {"$match": {"month": month, "year": year}},
+            {"$group": {"_id": "$category", "revenue": {"$sum": "$price"}}},
+            {"$sort": {"revenue": -1}}
+        ]
+        categories = list(sales.aggregate(cat_pipeline))
+
+        # Top Item
+        top_item_pipeline = [
+            {"$match": {"month": month, "year": year}},
+            {"$group": {"_id": "$name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 1}
+        ]
+        top_item = list(sales.aggregate(top_item_pipeline))
+        top_item_name = top_item[0]["_id"] if top_item else "None"
+        
+        return jsonify({
+            "summary": summary,
+            "trend": trend,
+            "categories": categories,
+            "top_item": top_item_name
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -431,6 +503,7 @@ def yearly_dashboard():
     try:
         year = request.args.get('year', datetime.now().strftime("%Y"))
         
+        # Monthly trend
         pipeline = [
             {"$match": {"year": year}},
             {"$group": {
@@ -440,9 +513,9 @@ def yearly_dashboard():
             }},
             {"$sort": {"_id": 1}}
         ]
-        
         monthly_data = list(sales.aggregate(pipeline))
         
+        # Summary
         overall_pipeline = [
             {"$match": {"year": year}},
             {"$group": {
@@ -454,7 +527,26 @@ def yearly_dashboard():
         overall = list(sales.aggregate(overall_pipeline))
         summary = overall[0] if overall else {"total_revenue": 0, "order_count": 0}
         
-        return jsonify({"summary": summary, "monthly_breakdown": monthly_data})
+        # Best Month
+        best_month_data = sorted(monthly_data, key=lambda x: x['revenue'], reverse=True)
+        best_month = best_month_data[0]["_id"] if best_month_data else "None"
+        
+        # Top Product
+        top_prod_pipeline = [
+            {"$match": {"year": year}},
+            {"$group": {"_id": "$name", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+            {"$limit": 1}
+        ]
+        top_prod = list(sales.aggregate(top_prod_pipeline))
+        top_prod_name = top_prod[0]["_id"] if top_prod else "None"
+        
+        return jsonify({
+            "summary": summary, 
+            "monthly_breakdown": monthly_data,
+            "best_month": best_month,
+            "top_product": top_prod_name
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -476,5 +568,5 @@ def time_intelligence():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
