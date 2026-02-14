@@ -1,57 +1,98 @@
-# 📚 API Documentation
+# 📚 API Documentation | Café Management System
 
-## Base URL
-`http://localhost:5000`
+## 🔐 Authentication & Access Control
+All sensitive routes require authentication. Admin routes further require an `admin` role.
 
-## Endpoints
+### 1. Login
+- **URL**: `/login`
+- **Method**: `POST`
+- **Body**: `{"username": "...", "password": "..."}`
+- **Response**: User role and redirect URL.
 
-### 1. Get Menu Items
+### 2. Logout
+- **URL**: `/logout`
+- **Method**: `GET`
+- **Response**: Redirect to login page.
+
+---
+
+## 💰 Sales & Menu API
+
+### 3. Get Menu Items
 - **URL**: `/api/menu-items`
 - **Method**: `GET`
-- **Query Params**: `category` (optional)
-- **Response**: List of menu items.
+- **Response**: List of all available menu items.
 
-### 2. Record a Sale
+### 4. Record a Sale
 - **URL**: `/api/record-sale`
 - **Method**: `POST`
-- **Body**: `{"item_id": 1}`
-- **Response**: Success message and recorded sale details.
+- **Body**: `{"item_id": 1, "payment_method": "Cash"}`
+- **Options**: `payment_method` can be `Cash` or `PhonePe`.
+- **Response**: Recorded sale details.
 
-### 3. Daily Dashboard
+---
+
+## 📊 Dashboard & Analytics API
+
+### 5. Daily Dashboard
 - **URL**: `/api/daily-dashboard`
 - **Method**: `GET`
-- **Query Params**: `date` (format: YYYY-MM-DD, defaults to today)
-- **Response**: Summary stats, category breakdown, and time slot counts.
+- **Query Params**: `date` (YYYY-MM-DD)
+- **Response**: Revenue, order count, and payment method split for the day.
 
-### 4. Monthly Dashboard
+### 6. Monthly Dashboard
 - **URL**: `/api/monthly-dashboard`
 - **Method**: `GET`
 - **Query Params**: `month`, `year`
-- **Response**: Revenue, profit, order count, and daily trend.
+- **Response**: Aggregated stats for the specified month.
 
-### 5. Yearly Dashboard
+### 7. Yearly Dashboard (Admin Only)
 - **URL**: `/api/yearly-dashboard`
 - **Method**: `GET`
 - **Query Params**: `year`
-- **Response**: Yearly totals and monthly performance breakdown.
+- **Response**: Annual summary and monthly breakdown.
 
-### 6. Time Intelligence
+### 8. Time Intelligence (Admin Only)
 - **URL**: `/api/time-intelligence`
 - **Method**: `GET`
-- **Response**: Performance metrics grouped by time slots.
+- **Response**: Performance metrics grouped by time slots (Morning, Lunch, etc.).
 
-## HTTP Status Codes
-- `200 OK`: Request successful.
-- `404 Not Found`: Item not found.
-- `500 Internal Server Error`: Server-side error.
+---
 
-## Example Request (JavaScript)
-```javascript
-fetch('/api/record-sale', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item_id: 1 })
-})
-.then(response => response.json())
-.then(data => console.log(data));
-```
+## 👥 Admin Management API
+
+### 9. Get All Users
+- **URL**: `/api/admin/users`
+- **Method**: `GET`
+- **Response**: List of users (passwords excluded).
+
+### 10. Create User
+- **URL**: `/api/admin/create-user`
+- **Method**: `POST`
+- **Body**: `{"username": "...", "password": "...", "role": "staff|admin"}`
+- **Constraints**: Max 2 admins, Max 5 staff.
+
+### 11. Toggle User Status
+- **URL**: `/api/admin/toggle-user-status`
+- **Method**: `POST`
+- **Body**: `{"username": "..."}`
+- **Response**: New activation status.
+
+### 12. Staff Performance
+- **URL**: `/api/admin/staff-performance`
+- **Method**: `GET`
+- **Query Params**: `date`, `month`, `year` (optional filters)
+- **Response**: Performance metrics grouped by staff member.
+
+---
+
+## 🖼️ Media Management
+
+### 13. Upload Image (Admin Only)
+- **URL**: `/api/upload-image`
+- **Method**: `POST`
+- **Form Data**: `image` (file), `item_id` (int)
+- **Response**: Image URL.
+
+---
+**Base URL**: `http://localhost:10000` (Production) | `http://localhost:5000` (Development)

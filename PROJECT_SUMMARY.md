@@ -1,52 +1,70 @@
 # 📋 Project Summary | Café Management System
 
-## Feature Set
+## 🧑‍💼 Simple Explanation for Client
+Our Café Management System is a secure, role-based web application designed to manage daily sales, staff performance, and business analytics.
 
-### 1. Sales Management
-- **One-Click Recording**: Fast sales entry via a grid UI.
-- **Categorized Menu**: 59 pre-configured items (Coffee, Tea, Bakery, Food).
-- **Automated Calculations**: Real-time revenue, cost, and profit tracking.
-
-### 2. Advanced Analytics
-- **Daily Performance**: 4 key metrics + 2 interactive charts.
-- **Monthly Trends**: Track growth across the month with line charts.
-- **Yearly Comparison**: Monthly bar charts to compare performance.
-- **Time Slot Intelligence**: Heatmaps and polar charts for operational planning.
-
-### 3. Technical Highlights
-- **Full Stack Integration**: Flask backend seamlessly connected to a MongoDB database.
-- **Responsive Web UI**: Fully mobile-compatible design with Bootstrap 5.
-- **Dynamic Visuals**: interactive data visualization using Chart.js.
-- **Environment Driven**: Configurable via `.env` for easy environment switching.
-
-## Statistics
-- **Total Files**: 11
-- **Total Lines of Code**: ~2,900
-- **Menu Items**: 59
-- **API Endpoints**: 8
-- **Charts**: 7
-
-## Database Schema
-
-### `menu_items` Collection
-- `item_id`: Unique identifier (Int)
-- `name`: Product name (String)
-- `category`: Grouping (String)
-- `price`: Sale price (Float)
-- `cost`: Production cost (Float)
-
-### `sales` Collection
-- `item_id`: Reference to product
-- `name`: Product name (Snapshot)
-- `price`: Sale price (Snapshot)
-- `profit`: Calculated profit (Float)
-- `timestamp`: Execution time (Date)
-- `time_slot`: Operational period (String)
-
-## Operational Gains
-- **Efficiency**: Reduces time spent calculating daily earnings manually.
-- **Insights**: identifies peak hours to optimize staffing.
-- **Profitability**: Highlights high-margin items versus high-volume items.
+The system contains:
+- 🔐 **Login System**: Admin & Staff logins with role-based access control.
+- 💰 **Sales Management**: Quick item selection, payment method options (Cash / PhonePe), and real-time recording.
+- 📊 **Dashboard System**: Comprehensive Daily, Monthly, and Yearly (Admin only) dashboards.
+- 👥 **Staff Monitoring**: Track performance, items sold, and revenue contribution by each staff member.
 
 ---
-**Version**: 1.0.0 | **Last Updated**: Jan 2025
+
+## 🏗️ Technical Architecture
+### 🔹 Frontend Layer
+- **HTML Templates (Jinja2)**: Server-side rendering for security and speed.
+- **Bootstrap UI**: Professional, responsive design for all devices.
+- **JavaScript**: Dynamic updates, payment modals, and API interaction.
+
+### 🔹 Backend Layer (Flask)
+- **REST API**: Robust endpoints for data handling.
+- **RBAC**: Role-Based Access Control protecting sensitive routes.
+- **Session Management**: Secure login persistence.
+- **Security**: Argon2/PBKDF2 password hashing (via Werkzeug).
+
+### 🔹 Database (MongoDB Atlas)
+- **Collections**:
+  - `menu_items`: Product details and categories.
+  - `sales`: Transaction records including pricing, payment method, and staff attribution.
+  - `users`: Secure user accounts with hashed credentials and roles.
+
+---
+
+## 🌐 System Structure
+### 1. Login & Authentication
+- Secure authentication with role-based redirection.
+- Automatic account lockout/deactivation features.
+
+### 2. Sales Operations
+- Interactive item cards with category filtering.
+- Multi-channel payment recording (Cash/PhonePe).
+- Instant data persistence to the cloud.
+
+### 3. Analytics & Reporting
+- **Daily Dashboard**: Real-time sales counts, revenue split (Cash vs PhonePe).
+- **Monthly Dashboard**: Historical trends and aggregated performance.
+- **Yearly Dashboard (Admin)**: High-level annual growth and comparison.
+
+### 4. Admin Management
+- Core user management (Create/Toggle staff status).
+- Detailed staff performance analytics (Top performers by revenue).
+
+---
+
+## 📊 Business Value
+- ✔ **Real-time Oversight**: Monitor sales as they happen.
+- ✔ **Staff Accountability**: Performance tracking prevents discrepancy.
+- ✔ **Financial Accuracy**: Clear breakdown of payment methods for reconciliation.
+- ✔ **Cloud Accessibility**: Manage your business from any device, anywhere.
+
+---
+
+## 📈 Future Expansion
+- **Inventory Management**: Automated stock tracking.
+- **Expense Tracking**: Calculate net profit after all costs.
+- **Digital Billing**: Thermal printer support and PDF invoices.
+- **Multi-branch**: Unified dashboard for multiple café locations.
+
+---
+**Version**: 1.1.0 | **Updated**: February 2026
