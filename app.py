@@ -1,17 +1,27 @@
 import os
+import secrets
 from dotenv import load_dotenv
 from pymongo import MongoClient
+from datetime import datetime, date
+from flask import Flask, request, jsonify, render_template, send_from_directory, session, redirect, url_for
+from flask_cors import CORS
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from bson import ObjectId
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 load_dotenv()
 
-from datetime import datetime, date
-from flask import Flask, request, jsonify, render_template, send_from_directory
-from flask_cors import CORS
-from bson import ObjectId
-from werkzeug.utils import secure_filename
-
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", secrets.token_hex(24))
 CORS(app)
+
+# Flask-Login Setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message_category = "info"
 
 # Configuration for file uploads
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -38,6 +48,31 @@ except Exception as e:
 db = client.get_database()
 menu_items = db.menu_items
 sales = db.sales
+users = db.users
+
+# --- Authentication Models & Decorators ---
+
+class User(UserMixin):
+    def __init__(self, user_data):
+        self.id = str(user_data['_id'])
+        self.username = user_data['username']
+        self.role = user_data['role']
+        self.is_active = user_data.get('is_active', True)
+
+@login_manager.user_loader
+def load_user(user_id):
+    user_data = users.find_one({"_id": ObjectId(user_id)})
+    if user_data:
+        return User(user_data)
+    return None
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            return jsonify({"error": "Admin access required"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 # --- Helper Functions ---
 
@@ -61,11 +96,141 @@ def format_doc(doc):
 
 # --- API Endpoints ---
 
+# --- Auth Routes ---
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        data = request.json if request.is_json else request.form
+        username = data.get('username')
+        password = data.get('password')
+        
+        user_data = users.find_one({"username": username})
+        if user_data and user_data.get('is_active', True) and check_password_hash(user_data['password'], password):
+            user = User(user_data)
+            login_user(user)
+            return jsonify({
+                "message": "Login successful",
+                "role": user.role,
+                "username": user.username,
+                "redirect": url_for('index')
+            })
+        return jsonify({"error": "Invalid username or password"}), 401
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+# --- User Management (Admin Only) ---
+
+@app.route('/admin/users')
+@admin_required
+def user_management():
+    return render_template('users.html')
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def get_users():
+    try:
+        all_users = list(users.find({}, {"password": 0}))
+        for u in all_users:
+            u['_id'] = str(u['_id'])
+        return jsonify(all_users)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/create-user', methods=['POST'])
+@admin_required
+def create_user():
+    try:
+        data = request.json
+        username = data.get('username')
+        password = data.get('password')
+        role = data.get('role') # 'admin' or 'staff'
+        
+        if role not in ['admin', 'staff']:
+            return jsonify({"error": "Invalid role"}), 400
+            
+        # Constraints
+        admin_count = users.count_documents({"role": "admin"})
+        staff_count = users.count_documents({"role": "staff"})
+        
+        if role == 'admin' and admin_count >= 2:
+            return jsonify({"error": "Maximum 2 admin accounts allowed"}), 400
+        if role == 'staff' and staff_count >= 5:
+            return jsonify({"error": "Maximum 5 staff accounts allowed"}), 400
+            
+        if users.find_one({"username": username}):
+            return jsonify({"error": "Username already exists"}), 400
+            
+        new_user = {
+            "username": username,
+            "password": generate_password_hash(password),
+            "role": role,
+            "created_by": current_user.username,
+            "created_at": datetime.now(),
+            "is_active": True
+        }
+        
+        users.insert_one(new_user)
+        return jsonify({"message": f"User {username} created successfully"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/toggle-user-status', methods=['POST'])
+@admin_required
+def toggle_user_status():
+    try:
+        data = request.json
+        target_username = data.get('username')
+        
+        if target_username == current_user.username:
+            return jsonify({"error": "Cannot deactivate your own account"}), 400
+            
+        user_data = users.find_one({"username": target_username})
+        if not user_data:
+            return jsonify({"error": "User not found"}), 404
+            
+        # Prevent deleting/deactivating the last admin
+        if user_data['role'] == 'admin' and user_data['is_active']:
+            admin_count = users.count_documents({"role": "admin", "is_active": True})
+            if admin_count <= 1:
+                return jsonify({"error": "Cannot deactivate the last active admin"}), 400
+                
+        new_status = not user_data.get('is_active', True)
+        users.update_one({"username": target_username}, {"$set": {"is_active": new_status}})
+        
+        return jsonify({"message": f"User {target_username} status updated", "is_active": new_status})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Initial Admin setup (run once)
+if users.count_documents({}) == 0:
+    default_admin = {
+        "username": "admin",
+        "password": generate_password_hash("admin123"),
+        "role": "admin",
+        "created_by": "system",
+        "created_at": datetime.now(),
+        "is_active": True
+    }
+    users.insert_one(default_admin)
+    print("🚀 Initial Admin created: admin / admin123")
+
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 @app.route('/api/upload-image', methods=['POST'])
+@admin_required
 def upload_image():
     try:
         if 'image' not in request.files:
@@ -103,6 +268,7 @@ def serve_uploads(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/api/menu-items', methods=['GET'])
+@login_required
 def get_menu_items():
     try:
         items = list(menu_items.find({}, {"_id": 0}))
@@ -111,6 +277,7 @@ def get_menu_items():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/record-sale', methods=['POST'])
+@login_required
 def record_sale():
     try:
         data = request.json
@@ -135,7 +302,8 @@ def record_sale():
             "date": now.strftime("%Y-%m-%d"),
             "month": now.strftime("%m"),
             "year": now.strftime("%Y"),
-            "time_slot": get_time_slot(now.hour)
+            "time_slot": get_time_slot(now.hour),
+            "sold_by": current_user.username
         }
         
         sales.insert_one(sale)
@@ -143,7 +311,26 @@ def record_sale():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/admin/staff-performance', methods=['GET'])
+@admin_required
+def staff_performance():
+    try:
+        pipeline = [
+            {"$group": {
+                "_id": "$sold_by",
+                "total_sales": {"$sum": 1},
+                "total_revenue": {"$sum": "$price"}
+            }},
+            {"$sort": {"total_revenue": -1}}
+        ]
+        
+        performance = list(sales.aggregate(pipeline))
+        return jsonify(performance)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/daily-dashboard', methods=['GET'])
+@login_required
 def daily_dashboard():
     try:
         target_date = request.args.get('date', datetime.now().strftime("%Y-%m-%d"))
@@ -167,6 +354,7 @@ def daily_dashboard():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/monthly-dashboard', methods=['GET'])
+@admin_required
 def monthly_dashboard():
     try:
         now = datetime.now()
@@ -192,6 +380,7 @@ def monthly_dashboard():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/yearly-dashboard', methods=['GET'])
+@admin_required
 def yearly_dashboard():
     try:
         year = request.args.get('year', datetime.now().strftime("%Y"))
@@ -224,6 +413,7 @@ def yearly_dashboard():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/time-intelligence', methods=['GET'])
+@admin_required
 def time_intelligence():
     try:
         pipeline = [

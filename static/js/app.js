@@ -69,7 +69,8 @@ function navigateTo(tabId) {
         'sales-entry': 'Sales Entry',
         'daily-view': 'Daily Dashboard',
         'monthly-view': 'Monthly Dashboard',
-        'yearly-view': 'Yearly Dashboard'
+        'yearly-view': 'Yearly Dashboard',
+        'staff-performance-view': 'Staff Performance'
     };
     document.getElementById('page-title').textContent = titles[tabId];
 
@@ -78,6 +79,7 @@ function navigateTo(tabId) {
     if (tabId === 'daily-view') loadDailyDashboard();
     if (tabId === 'monthly-view') loadMonthlyDashboard();
     if (tabId === 'yearly-view') loadYearlyDashboard();
+    if (tabId === 'staff-performance-view') loadStaffPerformance();
 }
 
 // --- Sales Entry Logic ---
@@ -267,6 +269,33 @@ async function loadYearlyDashboard() {
     const response = await fetch('/api/yearly-dashboard');
     const data = await response.json();
     document.getElementById('yearly-orders').textContent = data.summary.order_count || 0;
+}
+
+async function loadStaffPerformance() {
+    try {
+        const response = await fetch('/api/admin/staff-performance');
+        const data = await response.json();
+        const tbody = document.getElementById('staff-performance-body');
+        tbody.innerHTML = '';
+
+        data.forEach((staff, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ps-4 fw-bold">${staff._id}</td>
+                <td><span class="badge bg-light text-dark">${staff.total_sales} orders</span></td>
+                <td class="text-success fw-bold">₹${(staff.total_revenue || 0).toFixed(2)}</td>
+                <td>
+                    <span class="badge ${index === 0 ? 'bg-warning text-dark' : 'bg-info'}">
+                        ${index === 0 ? '🏆 Top Performer' : `#${index + 1}`}
+                    </span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error('Error loading performance:', error);
+        showToast('Error loading performance data', 'danger');
+    }
 }
 
 // --- Utilities ---
