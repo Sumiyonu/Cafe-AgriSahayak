@@ -91,6 +91,10 @@
             margin-bottom: 1rem;
             display: none;
         }
+
+        .error-message.visible {
+            display: block;
+        }
     </style>
 </head>
 
@@ -102,8 +106,9 @@
             <p class="text-white-50 small">Enterprise Management System</p>
         </div>
         <div class="login-body">
-            <div id="error-box" class="error-message"></div>
-            <form id="login-form">
+            <div id="error-box" class="error-message {{ 'visible' if error else '' }}">{{ error if error else '' }}
+            </div>
+            <form id="login-form" method="POST" action="/login">
                 <div class="mb-3">
                     <label class="form-label small fw-bold">Username</label>
                     <div class="input-group">

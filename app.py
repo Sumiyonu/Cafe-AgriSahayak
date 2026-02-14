@@ -8,7 +8,7 @@ from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from bson import ObjectId
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_bcrypt import Bcrypt
 from functools import wraps
 
 load_dotenv()
@@ -16,6 +16,7 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", secrets.token_hex(24))
 CORS(app)
+bcrypt = Bcrypt(app)
 
 # Flask-Login Setup
 login_manager = LoginManager()
@@ -108,17 +109,35 @@ def login():
         username = data.get('username')
         password = data.get('password')
         
-        user_data = users.find_one({"username": username})
-        if user_data and user_data.get('is_active', True) and check_password_hash(user_data['password'], password):
-            user = User(user_data)
-            login_user(user)
-            return jsonify({
-                "message": "Login successful",
-                "role": user.role,
-                "username": user.username,
-                "redirect": url_for('index')
-            })
-        return jsonify({"error": "Invalid username or password"}), 401
+        try:
+            user_data = users.find_one({"username": username})
+            if user_data and user_data.get('is_active', True) and bcrypt.check_password_hash(user_data['password'], password.encode('utf-8')):
+                user = User(user_data)
+                login_user(user)
+                
+                if request.is_json:
+                    return jsonify({
+                        "message": "Login successful",
+                        "role": user.role,
+                        "username": user.username,
+                        "redirect": url_for('index')
+                    })
+                return redirect(url_for('index'))
+            
+            error_msg = "Invalid username or password"
+            if item := users.find_one({"username": username}):
+                if not item.get('is_active', True):
+                    error_msg = "Your account has been deactivated. Please contact the administrator."
+            
+            if request.is_json:
+                return jsonify({"error": error_msg}), 401
+            return render_template("login.html", error=error_msg)
+            
+        except Exception as e:
+            print("Login Error:", e)
+            if request.is_json:
+                return jsonify({"error": "Server error. Please try again."}), 500
+            return render_template("login.html", error="Server error. Please try again.")
     
     return render_template('login.html')
 
@@ -172,7 +191,7 @@ def create_user():
             
         new_user = {
             "username": username,
-            "password": generate_password_hash(password),
+            "password": bcrypt.generate_password_hash(password).decode('utf-8'),
             "role": role,
             "created_by": current_user.username,
             "created_at": datetime.now(),
@@ -215,7 +234,7 @@ def toggle_user_status():
 if users.count_documents({}) == 0:
     admin_user = {
         "username": "DI1:1133557799",
-        "password": generate_password_hash("2244668800"),
+        "password": bcrypt.generate_password_hash("2244668800").decode('utf-8'),
         "role": "admin",
         "created_by": "system",
         "created_at": datetime.now(),
@@ -224,7 +243,7 @@ if users.count_documents({}) == 0:
     
     staff_user = {
         "username": "0088664422",
-        "password": generate_password_hash("9977553311"),
+        "password": bcrypt.generate_password_hash("9977553311").decode('utf-8'),
         "role": "staff",
         "created_by": "DI1:1133557799",
         "created_at": datetime.now(),
