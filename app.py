@@ -52,6 +52,128 @@ menu_items = db.menu_items
 sales = db.sales
 users = db.users
 
+# Ensure Unique Index on Name
+menu_items.create_index("name", unique=True)
+
+def sync_menu_items():
+    from datetime import datetime
+    
+    # 1. Force Activate ALL existing items in the collection
+    menu_items.update_many({}, {"$set": {"is_active": True}})
+    
+    # 2. Get existing names
+    existing_names = set(
+        item["name"] for item in menu_items.find({}, {"name": 1})
+    )
+
+    MASTER_MENU = [
+        # MILKSHAKES (25)
+        {"name": "Oreo Milkshake", "category": "Milkshakes", "price": 100, "description": "Rich and creamy milkshake featuring Oreo cookies blended with chilled milk."},
+        {"name": "Belgian Dark Chocolate Milkshake", "category": "Milkshakes", "price": 100, "description": "Premium dark chocolate blended into a smooth and indulgent shake."},
+        {"name": "Dry Fruit Milkshake", "category": "Milkshakes", "price": 150, "description": "Energy-packed milkshake blended with cashews, almonds, pistachios and chilled milk."},
+        {"name": "Brownie Milkshake", "category": "Milkshakes", "price": 120, "description": "Chocolate brownie blended with creamy milk for a rich dessert-style shake."},
+        {"name": "Strawberry Milkshake", "category": "Milkshakes", "price": 80, "description": "Fresh strawberry flavored shake, smooth and refreshing."},
+        {"name": "Watermelon Milkshake", "category": "Milkshakes", "price": 80, "description": "Light and refreshing milkshake made with chilled watermelon."},
+        {"name": "Blueberry Milkshake", "category": "Milkshakes", "price": 90, "description": "Sweet and tangy blueberry milkshake with smooth texture."},
+        {"name": "Black Current Milkshake", "category": "Milkshakes", "price": 90, "description": "Fruity and refreshing black currant flavored milkshake."},
+        {"name": "Butterscotch Milkshake", "category": "Milkshakes", "price": 80, "description": "Classic butterscotch flavor blended into creamy chilled milk."},
+        {"name": "Mango Milkshake", "category": "Milkshakes", "price": 80, "description": "Sweet tropical mango milkshake made with fresh mango crush."},
+        {"name": "Orange Milkshake", "category": "Milkshakes", "price": 80, "description": "Citrusy orange milkshake blended into creamy milk."},
+        {"name": "Banana Milkshake", "category": "Milkshakes", "price": 80, "description": "Creamy banana blended with milk for natural sweetness."},
+        {"name": "Vanilla Milkshake", "category": "Milkshakes", "price": 80, "description": "Classic vanilla flavored creamy milkshake."},
+        {"name": "Pineapple Milkshake", "category": "Milkshakes", "price": 80, "description": "Refreshing pineapple crush blended into chilled milk."},
+        {"name": "Guava Milkshake", "category": "Milkshakes", "price": 80, "description": "Sweet guava blended into a smooth and fruity shake."},
+        {"name": "Kiwi Milkshake", "category": "Milkshakes", "price": 80, "description": "Tangy kiwi flavored refreshing milkshake."},
+        {"name": "Kolkata Pan Milkshake", "category": "Milkshakes", "price": 100, "description": "Milkshake infused with traditional paan flavor."},
+        {"name": "Pista Milkshake", "category": "Milkshakes", "price": 80, "description": "Creamy pistachio flavored milkshake."},
+        {"name": "Banana Bonkers Milkshake", "category": "Milkshakes", "price": 90, "description": "Banana based milkshake with enhanced sweetness."},
+        {"name": "Kitkat Milkshake", "category": "Milkshakes", "price": 100, "description": "Creamy chocolate milkshake blended with Kitkat pieces."},
+        {"name": "5 Star Chocolate Milkshake", "category": "Milkshakes", "price": 100, "description": "Chocolate milkshake blended with 5 Star chocolate."},
+        {"name": "Gems Milkshake", "category": "Milkshakes", "price": 100, "description": "Colorful Gems chocolate blended into a creamy milkshake."},
+        {"name": "Snickers Milkshake", "category": "Milkshakes", "price": 100, "description": "Snickers chocolate blended into rich milkshake."},
+        {"name": "Choco Butterscotch Milkshake", "category": "Milkshakes", "price": 100, "description": "Butterscotch and chocolate blended into creamy milk."},
+        {"name": "Choco-nut Crunch Supreme", "category": "Milkshakes", "price": 120, "description": "Chocolate and nut infused premium thick milkshake."},
+
+        # ICE CREAM SHAKES (23)
+        {"name": "Kitkat Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Ice cream blended with Kitkat chocolate and milk."},
+        {"name": "Mango Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Mango flavored ice cream blended into thick shake."},
+        {"name": "Belgian Dark Chocolate Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Premium Belgian chocolate ice cream blended smoothly."},
+        {"name": "Blended Brownie Ice Cream Shake", "category": "Ice Cream Shakes", "price": 180, "description": "Chocolate brownie blended with creamy ice cream."},
+        {"name": "Gems Ice Cream Shake", "category": "Ice Cream Shakes", "price": 80, "description": "Ice cream blended with Gems chocolates."},
+        {"name": "Black Current Ice Cream Shake", "category": "Ice Cream Shakes", "price": 80, "description": "Black currant ice cream blended into smooth shake."},
+        {"name": "Butterscotch Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Butterscotch ice cream blended into creamy shake."},
+        {"name": "Watermelon Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Watermelon flavored ice cream blended with milk."},
+        {"name": "Pineapple Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Pineapple flavored ice cream blended smoothly."},
+        {"name": "Guava Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Guava flavored ice cream blended creamy."},
+        {"name": "Vanilla Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Classic vanilla ice cream blended shake."},
+        {"name": "Orange Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Citrusy orange flavored ice cream shake."},
+        {"name": "Banana Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Banana flavored creamy ice cream shake."},
+        {"name": "Strawberry Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Strawberry ice cream blended into thick shake."},
+        {"name": "Kiwi Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Kiwi flavored ice cream blended smoothly."},
+        {"name": "Kolkata Pan Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Paan flavored ice cream blended shake."},
+        {"name": "Pista Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Pistachio ice cream blended into creamy shake."},
+        {"name": "Blueberry Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Blueberry flavored ice cream shake."},
+        {"name": "Chocolate Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Chocolate ice cream blended into smooth shake."},
+        {"name": "Banana Bonkers Ice Cream Shake", "category": "Ice Cream Shakes", "price": 170, "description": "Banana ice cream shake topped with chocolate."},
+        {"name": "5 Star Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "5 Star chocolate blended into ice cream shake."},
+        {"name": "Choco Butterscotch Ice Cream Shake", "category": "Ice Cream Shakes", "price": 150, "description": "Chocolate and butterscotch blended ice cream shake."},
+        {"name": "Belgian Dark Chocolate Ice Cream Shake (Special)", "category": "Ice Cream Shakes", "price": 150, "description": "Premium Belgian chocolate ice cream blend."},
+
+        # SNACKS (6)
+        {"name": "Peri Peri French Fries", "category": "Snacks", "price": 100, "description": "Crispy fries coated in peri peri spice blend."},
+        {"name": "Masala Fries", "category": "Snacks", "price": 70, "description": "Classic fries tossed with spicy masala seasoning."},
+        {"name": "Peri Smilies", "category": "Snacks", "price": 50, "description": "Smiley shaped potato snacks with peri peri flavor."},
+        {"name": "Cheesy Fries", "category": "Snacks", "price": 150, "description": "Loaded fries topped with melted cheese."},
+        {"name": "Classic Salted Smilies", "category": "Snacks", "price": 50, "description": "Golden fried smiley potatoes lightly salted."},
+        {"name": "Classic Salted French Fries", "category": "Snacks", "price": 85, "description": "Classic salted crispy French fries."},
+
+        # COMBO OFFERS (5)
+        {"name": "Mango Milkshake + French Fries", "category": "Combo Offers", "price": 140, "description": "Sweet mango milkshake paired with crispy fries."},
+        {"name": "Watermelon Milkshake + Classic French Fries", "category": "Combo Offers", "price": 140, "description": "Refreshing watermelon shake with salted fries."},
+        {"name": "Vanilla Milkshake + Classic French Fries", "category": "Combo Offers", "price": 140, "description": "Classic vanilla shake with crispy fries."},
+        {"name": "Chocolate Milkshake + Classic French Fries", "category": "Combo Offers", "price": 160, "description": "Chocolate milkshake served with fries."},
+        {"name": "Orange Milkshake + Classic French Fries", "category": "Combo Offers", "price": 140, "description": "Citrusy orange milkshake paired with salted fries."}
+    ]
+
+    # 3. Synchronize Master Menu
+    all_items = list(menu_items.find().sort("item_id", -1).limit(1))
+    next_id = 1
+    if all_items:
+        last_id = all_items[0].get("item_id", 0)
+        if isinstance(last_id, int):
+            next_id = last_id + 1
+        else:
+            next_id = menu_items.count_documents({}) + 1
+
+    for item in MASTER_MENU:
+        if item["name"] not in existing_names:
+            item["item_id"] = next_id
+            item["is_active"] = True
+            item["created_at"] = datetime.utcnow()
+            item["order_count"] = 0
+            item["image_url"] = ""
+            menu_items.insert_one(item)
+            next_id += 1
+        else:
+            # Update existing items to match MASTER_MENU specs (price/category/active)
+            menu_items.update_one(
+                {"name": item["name"]},
+                {"$set": {
+                    "category": item["category"],
+                    "price": item["price"],
+                    "is_active": True
+                }}
+            )
+
+    # 4. Final Cleanup: Ensure every record has required fields
+    menu_items.update_many({"order_count": {"$exists": False}}, {"$set": {"order_count": 0}})
+    menu_items.update_many({"image_url": {"$exists": False}}, {"$set": {"image_url": ""}})
+    
+    print(f"✅ Menu sync complete. Total items: {menu_items.count_documents({})}")
+
+# Run Sync
+sync_menu_items()
+
 # --- Authentication Models & Decorators ---
 
 class User(UserMixin):
@@ -319,7 +441,8 @@ def serve_uploads(filename):
 @login_required
 def get_menu_items():
     try:
-        items = list(menu_items.find({}, {"_id": 0}))
+        # Sort by order_count descending (most ordered first)
+        items = list(menu_items.find({"is_active": True}, {"_id": 0}).sort("order_count", -1))
         return jsonify(items)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -335,7 +458,14 @@ def record_sale():
         if payment_method not in ['Cash', 'PhonePe']:
             return jsonify({"error": "Invalid payment method. Only Cash and PhonePe are allowed."}), 400
 
+        # Handle both string and integer IDs for robustness
         item = menu_items.find_one({"item_id": item_id})
+        if not item:
+            try:
+                item = menu_items.find_one({"item_id": int(item_id)})
+            except (ValueError, TypeError):
+                pass
+                
         if not item:
             return jsonify({"error": "Item not found"}), 404
         
@@ -355,6 +485,10 @@ def record_sale():
         }
         
         sales.insert_one(sale)
+        
+        # Increment order_count for the item
+        menu_items.update_one({"item_id": item_id}, {"$inc": {"order_count": 1}})
+        
         return jsonify({"message": "Sale recorded successfully", "sale": format_doc(sale)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
