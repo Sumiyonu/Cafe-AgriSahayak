@@ -315,14 +315,31 @@ def record_sale():
 @admin_required
 def staff_performance():
     try:
-        pipeline = [
+        # Get filters from query params
+        date_filter = request.args.get('date')
+        month_filter = request.args.get('month')
+        year_filter = request.args.get('year')
+        
+        match_query = {}
+        if date_filter:
+            match_query["date"] = date_filter
+        if month_filter:
+            match_query["month"] = month_filter
+        if year_filter:
+            match_query["year"] = year_filter
+            
+        pipeline = []
+        if match_query:
+            pipeline.append({"$match": match_query})
+            
+        pipeline.extend([
             {"$group": {
                 "_id": "$sold_by",
                 "total_sales": {"$sum": 1},
                 "total_revenue": {"$sum": "$price"}
             }},
             {"$sort": {"total_revenue": -1}}
-        ]
+        ])
         
         performance = list(sales.aggregate(pipeline))
         return jsonify(performance)

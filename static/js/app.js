@@ -12,6 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMenuItems();
     setupTooltips();
     setupUploadHandlers();
+
+    // Set initial tab based on role
+    const userRole = localStorage.getItem('user_role');
+    if (userRole === 'admin') {
+        navigateTo('daily-view');
+    } else {
+        navigateTo('sales-entry');
+    }
 });
 
 function initFilters() {
@@ -41,6 +49,19 @@ function initFilters() {
             yearSelect.appendChild(opt);
         }
         yearSelect.value = currentYear;
+    }
+
+    // Staff filters
+    const staffYearSelect = document.getElementById('staff-year-filter');
+    if (staffYearSelect) {
+        const currentYear = now.getFullYear();
+        staffYearSelect.innerHTML = '<option value="">All Years</option>';
+        for (let i = currentYear; i >= currentYear - 2; i--) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = i;
+            staffYearSelect.appendChild(opt);
+        }
     }
 }
 
@@ -273,15 +294,30 @@ async function loadYearlyDashboard() {
 
 async function loadStaffPerformance() {
     try {
-        const response = await fetch('/api/admin/staff-performance');
+        const date = document.getElementById('staff-date-filter').value;
+        const month = document.getElementById('staff-month-filter').value;
+        const year = document.getElementById('staff-year-filter').value;
+
+        let queryParams = [];
+        if (date) queryParams.push(`date=${date}`);
+        if (month) queryParams.push(`month=${month}`);
+        if (year) queryParams.push(`year=${year}`);
+
+        const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+        const response = await fetch(`/api/admin/staff-performance${queryString}`);
         const data = await response.json();
         const tbody = document.getElementById('staff-performance-body');
         tbody.innerHTML = '';
 
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No sales found for the selected criteria</td></tr>';
+            return;
+        }
+
         data.forEach((staff, index) => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="ps-4 fw-bold">${staff._id}</td>
+                <td class="ps-4 fw-bold">${staff._id || 'Unknown'}</td>
                 <td><span class="badge bg-light text-dark">${staff.total_sales} orders</span></td>
                 <td class="text-success fw-bold">₹${(staff.total_revenue || 0).toFixed(2)}</td>
                 <td>
@@ -296,6 +332,13 @@ async function loadStaffPerformance() {
         console.error('Error loading performance:', error);
         showToast('Error loading performance data', 'danger');
     }
+}
+
+function resetStaffFilters() {
+    document.getElementById('staff-date-filter').value = '';
+    document.getElementById('staff-month-filter').value = '';
+    document.getElementById('staff-year-filter').value = '';
+    loadStaffPerformance();
 }
 
 // --- Utilities ---

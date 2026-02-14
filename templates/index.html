@@ -637,6 +637,39 @@
 
         <!-- Staff Performance Section -->
         <section id="staff-performance-view" class="dashboard-section">
+            <div class="row mb-4 g-3">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-brown">Filter by Date</label>
+                    <input type="date" id="staff-date-filter" class="form-control" onchange="loadStaffPerformance()">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-brown">Filter by Month</label>
+                    <select id="staff-month-filter" class="form-select" onchange="loadStaffPerformance()">
+                        <option value="">All Months</option>
+                        <option value="01">January</option>
+                        <option value="02">February</option>
+                        <option value="03">March</option>
+                        <option value="04">April</option>
+                        <option value="05">May</option>
+                        <option value="06">June</option>
+                        <option value="07">July</option>
+                        <option value="08">August</option>
+                        <option value="09">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-brown">Filter by Year</label>
+                    <select id="staff-year-filter" class="form-select" onchange="loadStaffPerformance()">
+                        <!-- Years will be injected -->
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-outline-secondary w-100" onclick="resetStaffFilters()">Reset Filters</button>
+                </div>
+            </div>
             <div class="card mb-4">
                 <div class="card-header bg-white py-3">
                     <h5 class="mb-0 fw-bold">Staff Performance Analytics</h5>
