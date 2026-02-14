@@ -211,18 +211,28 @@ def toggle_user_status():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Initial Admin setup (run once)
+# --- Default User Bootstrap Logic ---
 if users.count_documents({}) == 0:
-    default_admin = {
-        "username": "admin",
-        "password": generate_password_hash("admin123"),
+    admin_user = {
+        "username": "DI1:1133557799",
+        "password": generate_password_hash("2244668800"),
         "role": "admin",
         "created_by": "system",
         "created_at": datetime.now(),
         "is_active": True
     }
-    users.insert_one(default_admin)
-    print("🚀 Initial Admin created: admin / admin123")
+    
+    staff_user = {
+        "username": "0088664422",
+        "password": generate_password_hash("9977553311"),
+        "role": "staff",
+        "created_by": "DI1:1133557799",
+        "created_at": datetime.now(),
+        "is_active": True
+    }
+    
+    users.insert_many([admin_user, staff_user])
+    print("Default admin and staff accounts created successfully.")
 
 @app.route('/')
 @login_required
