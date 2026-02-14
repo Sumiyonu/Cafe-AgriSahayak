@@ -56,14 +56,13 @@ users = db.users
 
 class User(UserMixin):
     def __init__(self, user_data):
-        self.id = str(user_data['_id'])
+        self.id = user_data['username']
         self.username = user_data['username']
         self.role = user_data['role']
-        self.is_active = user_data.get('is_active', True)
 
 @login_manager.user_loader
 def load_user(user_id):
-    user_data = users.find_one({"_id": ObjectId(user_id)})
+    user_data = users.find_one({"username": user_id})
     if user_data:
         return User(user_data)
     return None
@@ -401,7 +400,6 @@ def daily_dashboard():
     try:
         target_date = request.args.get('date', datetime.now().strftime("%Y-%m-%d"))
         
-        # Core Stats
         pipeline = [
             {"$match": {"date": target_date}},
             {"$group": {
@@ -415,28 +413,7 @@ def daily_dashboard():
         
         stats = list(sales.aggregate(pipeline))
         summary = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
-        
-        # Item Distribution (Top 10)
-        item_pipeline = [
-            {"$match": {"date": target_date}},
-            {"$group": {"_id": "$name", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}},
-            {"$limit": 10}
-        ]
-        items = list(sales.aggregate(item_pipeline))
-        
-        # Category Distribution
-        cat_pipeline = [
-            {"$match": {"date": target_date}},
-            {"$group": {"_id": "$category", "count": {"$sum": 1}}}
-        ]
-        categories = list(sales.aggregate(cat_pipeline))
-        
-        return jsonify({
-            "summary": summary,
-            "items": items,
-            "categories": categories
-        })
+        return jsonify(summary)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -448,7 +425,6 @@ def monthly_dashboard():
         month = request.args.get('month', now.strftime("%m"))
         year = request.args.get('year', now.strftime("%Y"))
         
-        # Summary
         pipeline = [
             {"$match": {"month": month, "year": year}},
             {"$group": {
@@ -461,39 +437,7 @@ def monthly_dashboard():
         ]
         stats = list(sales.aggregate(pipeline))
         summary = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
-        
-        # Daily Trend
-        trend_pipeline = [
-            {"$match": {"month": month, "year": year}},
-            {"$group": {"_id": "$date", "revenue": {"$sum": "$price"}}},
-            {"$sort": {"_id": 1}}
-        ]
-        trend = list(sales.aggregate(trend_pipeline))
-        
-        # Category Performance
-        cat_pipeline = [
-            {"$match": {"month": month, "year": year}},
-            {"$group": {"_id": "$category", "revenue": {"$sum": "$price"}}},
-            {"$sort": {"revenue": -1}}
-        ]
-        categories = list(sales.aggregate(cat_pipeline))
-
-        # Top Item
-        top_item_pipeline = [
-            {"$match": {"month": month, "year": year}},
-            {"$group": {"_id": "$name", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}},
-            {"$limit": 1}
-        ]
-        top_item = list(sales.aggregate(top_item_pipeline))
-        top_item_name = top_item[0]["_id"] if top_item else "None"
-        
-        return jsonify({
-            "summary": summary,
-            "trend": trend,
-            "categories": categories,
-            "top_item": top_item_name
-        })
+        return jsonify(summary)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -502,51 +446,19 @@ def monthly_dashboard():
 def yearly_dashboard():
     try:
         year = request.args.get('year', datetime.now().strftime("%Y"))
-        
-        # Monthly trend
         pipeline = [
-            {"$match": {"year": year}},
-            {"$group": {
-                "_id": "$month",
-                "revenue": {"$sum": "$price"},
-                "count": {"$sum": 1}
-            }},
-            {"$sort": {"_id": 1}}
-        ]
-        monthly_data = list(sales.aggregate(pipeline))
-        
-        # Summary
-        overall_pipeline = [
             {"$match": {"year": year}},
             {"$group": {
                 "_id": None,
                 "total_revenue": {"$sum": "$price"},
-                "order_count": {"$sum": 1}
+                "order_count": {"$sum": 1},
+                "cash_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "Cash"]}, "$price", 0]}},
+                "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}}
             }}
         ]
-        overall = list(sales.aggregate(overall_pipeline))
-        summary = overall[0] if overall else {"total_revenue": 0, "order_count": 0}
-        
-        # Best Month
-        best_month_data = sorted(monthly_data, key=lambda x: x['revenue'], reverse=True)
-        best_month = best_month_data[0]["_id"] if best_month_data else "None"
-        
-        # Top Product
-        top_prod_pipeline = [
-            {"$match": {"year": year}},
-            {"$group": {"_id": "$name", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}},
-            {"$limit": 1}
-        ]
-        top_prod = list(sales.aggregate(top_prod_pipeline))
-        top_prod_name = top_prod[0]["_id"] if top_prod else "None"
-        
-        return jsonify({
-            "summary": summary, 
-            "monthly_breakdown": monthly_data,
-            "best_month": best_month,
-            "top_product": top_prod_name
-        })
+        overall = list(sales.aggregate(pipeline))
+        summary = overall[0] if overall else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
+        return jsonify(summary)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

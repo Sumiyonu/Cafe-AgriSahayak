@@ -1,7 +1,6 @@
 // Global State
 let currentTab = 'sales-entry';
 let menuItems = [];
-let charts = {};
 let pendingSaleItemId = null;
 
 // Initialization
@@ -68,7 +67,10 @@ function initFilters() {
 function updateDateTime() {
     const now = new Date();
     const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
-    document.getElementById('current-datetime').textContent = now.toLocaleDateString('en-US', options);
+    const element = document.getElementById('current-datetime');
+    if (element) {
+        element.textContent = now.toLocaleDateString('en-US', options);
+    }
 }
 
 function navigateTo(tabId) {
@@ -83,7 +85,11 @@ function navigateTo(tabId) {
     document.querySelectorAll('.dashboard-section').forEach(sec => {
         sec.classList.remove('active');
     });
-    document.getElementById(tabId).classList.add('active');
+
+    const targetSection = document.getElementById(tabId);
+    if (targetSection) {
+        targetSection.classList.add('active');
+    }
 
     const titles = {
         'sales-entry': 'Sales Entry',
@@ -92,7 +98,11 @@ function navigateTo(tabId) {
         'yearly-view': 'Yearly Dashboard',
         'staff-performance-view': 'Staff Performance'
     };
-    document.getElementById('page-title').textContent = titles[tabId];
+
+    const titleElement = document.getElementById('page-title');
+    if (titleElement) {
+        titleElement.textContent = titles[tabId];
+    }
 
     currentTab = tabId;
 
@@ -118,6 +128,7 @@ async function loadMenuItems() {
 
 function renderMenu(items) {
     const container = document.getElementById('menu-container');
+    if (!container) return;
     container.innerHTML = '';
 
     if (items.length === 0) {
@@ -201,6 +212,7 @@ async function confirmSale(paymentMethod, element) {
     }
 }
 
+let activeUploadItemId = null;
 function triggerUpload(event, itemId) {
     event.stopPropagation();
     activeUploadItemId = itemId;
@@ -258,56 +270,43 @@ function filterMenu(category) {
 // --- Dashboard Data Loading ---
 
 async function loadDailyDashboard() {
-    const date = document.getElementById('daily-date-filter').value;
+    const dateInput = document.getElementById('daily-date-filter');
+    if (!dateInput) return;
+    const date = dateInput.value;
     const response = await fetch(`/api/daily-dashboard?date=${date}`);
-    const data = await response.json();
+    const summary = await response.json();
 
-    const summary = data.summary;
     document.getElementById('daily-revenue').textContent = `₹${(summary.total_revenue || 0).toFixed(2)}`;
     document.getElementById('daily-orders').textContent = summary.order_count || 0;
     document.getElementById('daily-phonepe').textContent = `₹${(summary.phonepe_amount || 0).toFixed(2)}`;
     document.getElementById('daily-cash').textContent = `₹${(summary.cash_amount || 0).toFixed(2)}`;
-
-    // Update Charts
-    updateChart('daily-item-chart', 'bar', data.items.map(i => i._id), data.items.map(i => i.count), 'Units Sold', '#6d4c41');
-    updateChart('daily-category-chart', 'pie', data.categories.map(c => c._id), data.categories.map(c => c.count), 'Categories', ['#6d4c41', '#8d6e63', '#ffab91', '#ff9800', '#4caf50']);
 }
 
 async function loadMonthlyDashboard() {
-    const month = document.getElementById('monthly-month-filter').value;
-    const year = document.getElementById('monthly-year-filter').value;
+    const monthSelect = document.getElementById('monthly-month-filter');
+    const yearSelect = document.getElementById('monthly-year-filter');
+    if (!monthSelect || !yearSelect) return;
+
+    const month = monthSelect.value;
+    const year = yearSelect.value;
 
     const response = await fetch(`/api/monthly-dashboard?month=${month}&year=${year}`);
-    const data = await response.json();
+    const summary = await response.json();
 
-    const summary = data.summary;
     document.getElementById('monthly-revenue').textContent = `₹${(summary.total_revenue || 0).toFixed(2)}`;
     document.getElementById('monthly-orders').textContent = summary.order_count || 0;
     document.getElementById('monthly-phonepe').textContent = `₹${(summary.phonepe_amount || 0).toFixed(2)}`;
     document.getElementById('monthly-cash').textContent = `₹${(summary.cash_amount || 0).toFixed(2)}`;
-
-    // Update Charts
-    updateChart('monthly-trend-chart', 'line', data.trend.map(t => t._id.split('-')[2]), data.trend.map(t => t.revenue), 'Daily Revenue', '#6d4c41');
-    updateChart('monthly-category-chart', 'bar', data.categories.map(c => c._id), data.categories.map(c => c.revenue), 'Revenue by Category', '#8d6e63');
 }
 
 async function loadYearlyDashboard() {
     const response = await fetch('/api/yearly-dashboard');
-    const data = await response.json();
+    const summary = await response.json();
 
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-    const summary = data.summary;
     document.getElementById('yearly-revenue').textContent = `₹${(summary.total_revenue || 0).toFixed(2)}`;
-
-    const bestMonthName = data.best_month !== "None" ? monthNames[parseInt(data.best_month) - 1] : 'N/A';
-    document.getElementById('yearly-best-month').textContent = bestMonthName;
-    document.getElementById('yearly-top-item').textContent = data.top_product || 'N/A';
-
-    const labels = data.monthly_breakdown.map(m => monthNames[parseInt(m._id) - 1]);
-    const values = data.monthly_breakdown.map(m => m.revenue);
-
-    updateChart('yearly-trend-chart', 'line', labels, values, 'Monthly Revenue', '#ffab91');
+    document.getElementById('yearly-orders').textContent = summary.order_count || 0;
+    document.getElementById('yearly-phonepe').textContent = `₹${(summary.phonepe_amount || 0).toFixed(2)}`;
+    document.getElementById('yearly-cash').textContent = `₹${(summary.cash_amount || 0).toFixed(2)}`;
 }
 
 async function loadStaffPerformance() {
@@ -325,6 +324,7 @@ async function loadStaffPerformance() {
         const response = await fetch(`/api/admin/staff-performance${queryString}`);
         const data = await response.json();
         const tbody = document.getElementById('staff-performance-body');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         if (data.length === 0) {
@@ -349,53 +349,6 @@ async function loadStaffPerformance() {
     } catch (error) {
         showToast('Error loading performance', 'danger');
     }
-}
-
-function updateChart(chartId, type, labels, data, label, color) {
-    const ctx = document.getElementById(chartId);
-    if (!ctx) return;
-
-    if (charts[chartId]) {
-        charts[chartId].destroy();
-    }
-
-    charts[chartId] = new Chart(ctx, {
-        type: type,
-        data: {
-            labels: labels,
-            datasets: [{
-                label: label,
-                data: data,
-                backgroundColor: Array.isArray(color) ? color : color + 'CC',
-                borderColor: Array.isArray(color) ? '#fff' : color,
-                borderWidth: 2,
-                tension: 0.3,
-                fill: type === 'line'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: type === 'pie'
-                }
-            },
-            scales: type === 'pie' ? {} : {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        drawBorder: false
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    }
-                }
-            }
-        }
-    });
 }
 
 function resetStaffFilters() {
