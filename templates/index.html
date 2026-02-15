@@ -55,7 +55,8 @@
             top: 0;
             background: linear-gradient(180deg, var(--primary) 0%, #3e2723 100%);
             color: white;
-            z-index: 1000;
+            z-index: 2100;
+            /* Higher than cart panel for desktop or overlay */
             transition: all var(--transition);
         }
 
@@ -161,24 +162,32 @@
             box-shadow: 0 8px 20px rgba(109, 76, 65, 0.3);
         }
 
-        /* Premium Item Grid */
+        /* Premium Item Grid - Compact */
         .menu-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 2rem;
+            gap: 1.5rem;
             animation: slideUp 0.5s ease;
+        }
+
+        @media (max-width: 768px) {
+            .menu-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
         }
 
         .menu-item-card {
             background: var(--card-bg);
-            border-radius: var(--radius);
+            border-radius: 12px;
             overflow: hidden;
             border: 1px solid rgba(0, 0, 0, 0.03);
             box-shadow: var(--shadow-soft);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s ease;
             display: flex;
             flex-direction: column;
             height: 100%;
+            position: relative;
         }
 
         .menu-item-card:hover {
@@ -225,10 +234,43 @@
         }
 
         .item-content {
-            padding: 1.5rem;
+            padding: 1rem;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
+        }
+
+        @media (max-width: 768px) {
+            .item-content {
+                padding: 8px;
+            }
+
+            .item-img-container {
+                height: 120px;
+            }
+
+            .item-name {
+                font-size: 0.9rem !important;
+                margin-bottom: 2px !important;
+            }
+
+            .price-badge {
+                padding: 4px 10px;
+                font-size: 0.8rem;
+            }
+
+            .add-btn {
+                padding: 8px !important;
+                font-size: 0.75rem !important;
+                margin-top: 5px !important;
+            }
+
+            .edit-price-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
         }
 
         .item-name {
@@ -646,90 +688,214 @@
         }
 
         /* Responsive Improvements */
-        @media (max-width: 992px) {
-            .mobile-header-bar {
-                display: flex;
+        @media (max-width: 768px) {
+            #sidebar {
+                display: none;
+            }
+
+            #content {
+                margin-left: 0;
+                padding: 10px;
+                padding-bottom: 80px;
             }
 
             .desktop-only-header {
                 display: none !important;
             }
 
-            #content {
-                padding-top: 5rem !important;
-                /* Make room for sticky header */
-            }
-
-            .theme-toggle {
-                top: 70px;
-                /* Move below header */
-                right: 15px;
-                width: 40px;
-                height: 40px;
-            }
-
-            /* Enhanced Category Slider for Swipe */
-            .category-slider {
-                gap: 12px;
-                padding-bottom: 5px;
-                -webkit-overflow-scrolling: touch;
-                touch-action: pan-x;
-            }
-
-            .category-pill {
-                padding: 12px 20px;
-                /* Min 48px tap recommendation */
-                min-height: 48px;
+            .mobile-header-bar {
                 display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            /* Tap targets */
-            .add-btn,
-            .nav-link,
-            .bottom-nav-item,
-            .payment-card {
-                min-height: 48px;
-            }
-
-            /* Sticky Search Placement */
-            .search-section-wrapper {
-                top: 64px;
-                background: var(--bg);
-                padding: 10px 0;
-                margin-left: -1.5rem;
-                margin-right: -1.5rem;
-                padding-left: 1.5rem;
-                padding-right: 1.5rem;
+                position: sticky;
+                top: 0;
+                z-index: 1000;
             }
 
             .category-slider-wrapper {
+                position: sticky;
+                top: 64px;
+                z-index: 999;
+                padding: 10px;
+                background: var(--bg);
+                margin: 0;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            }
+
+            .search-section-wrapper {
+                position: sticky;
                 top: 130px;
-                /* Below search bar if sticky */
+                z-index: 998;
+                padding: 10px;
+                background: var(--bg);
+                margin: 0;
             }
 
-            /* iOS Safe Area Padding */
-            body {
-                padding-bottom: env(safe-area-inset-bottom);
+            .menu-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 8px;
             }
 
-            .bottom-nav {
-                padding-bottom: calc(10px + env(safe-area-inset-bottom));
-                height: calc(70px + env(safe-area-inset-bottom));
+            .menu-item-card {
+                border-radius: 12px;
+                height: auto;
+            }
+
+            .item-img-container {
+                height: 110px;
+            }
+
+            .item-name {
+                font-size: 0.85rem !important;
+                height: 2.4em;
+                overflow: hidden;
             }
         }
 
-        @media (max-width: 576px) {
-            .search-section-wrapper {
-                padding-left: 1rem;
-                padding-right: 1rem;
+        /* Animations */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
             }
 
-            .category-slider-wrapper {
-                padding-left: 1rem;
-                padding-right: 1rem;
+            50% {
+                transform: scale(1.2);
             }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .pulse {
+            animation: pulse 0.3s ease-in-out;
+        }
+
+        /* Cart Slide-Up Panel */
+        .cart-panel {
+            position: fixed;
+            bottom: -100%;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            z-index: 2000;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1);
+            transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cart-panel.open {
+            bottom: 0;
+        }
+
+        .cart-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            display: none;
+            backdrop-filter: blur(2px);
+        }
+
+        .cart-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cart-items-list {
+            overflow-y: auto;
+            padding: 1rem;
+            flex-grow: 1;
+        }
+
+        .cart-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .cart-footer {
+            padding: 1.5rem;
+            background: var(--bg);
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: var(--card-bg);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+            z-index: 1500;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .bottom-nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.7rem;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .bottom-nav-item i {
+            font-size: 1.3rem;
+            margin-bottom: 4px;
+        }
+
+        .bottom-nav-item.active {
+            color: var(--primary);
+        }
+
+        .cart-badge {
+            position: absolute;
+            top: -5px;
+            right: -10px;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 4px 12px;
+            border-radius: 50px;
+        }
+
+        .qty-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 0 5px;
         }
 
         /* Smooth Section Transitions */
@@ -1136,16 +1302,37 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
-                <div class="modal-body text-center p-4">
-                    <h5 id="price-modal-item-name" class="mb-4">Item Name</h5>
-                    <div class="form-floating mb-3">
+                <div class="modal-body p-4">
+                    <h5 id="price-modal-item-name" class="mb-4 text-center fw-bold">Item Name</h5>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Current Price</label>
+                        <input type="text" class="form-control bg-light" id="current-item-price-display" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">New Price (₹)</label>
                         <input type="number" class="form-control" id="new-item-price" placeholder="0.00" step="0.01"
                             min="0">
-                        <label for="new-item-price">New Price (₹)</label>
                     </div>
-                    <div class="d-grid">
-                        <button class="btn btn-save-price" onclick="saveNewPrice()">
-                            <i class="fas fa-save me-2"></i>Update Price
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="is-offer-switch">
+                            <label class="form-check-label fw-bold" for="is-offer-switch">Mark as Special Offer</label>
+                        </div>
+                        <small class="text-muted">Will show original price with strike-through</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small text-muted">Reason for Change (Optional)</label>
+                        <textarea class="form-control" id="price-change-reason" rows="2"
+                            placeholder="e.g. Seasonal discount, price hike..."></textarea>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-save-price py-2" onclick="saveNewPrice()">
+                            <i class="fas fa-save me-2"></i>Save Changes
                         </button>
                     </div>
                 </div>
@@ -1165,26 +1352,74 @@
         </div>
     </div>
 
+    <!-- Cart Slide-Up Panel -->
+    <div class="cart-overlay" id="cart-overlay" onclick="toggleCart()"></div>
+    <div class="cart-panel" id="cart-panel">
+        <div class="cart-header">
+            <h5 class="mb-0 fw-bold"><i class="fas fa-shopping-cart me-2"></i>My Cart</h5>
+            <button class="btn-close" onclick="toggleCart()"></button>
+        </div>
+        <div class="cart-items-list" id="cart-items-list">
+            <!-- Items injected via JS -->
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-shopping-basket fa-3x mb-3 opacity-20"></i>
+                <p>Your cart is empty</p>
+            </div>
+        </div>
+        <div class="cart-footer">
+            <div class="d-flex justify-content-between mb-3 fw-bold fs-5">
+                <span>Total Amount:</span>
+                <span id="cart-total">₹0</span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Payment Method</label>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <input type="radio" class="btn-check" name="payment" id="pay-cash" value="Cash" checked>
+                        <label class="btn btn-outline-success w-100 py-2" for="pay-cash">
+                            <i class="fas fa-money-bill-wave me-1"></i> Cash
+                        </label>
+                    </div>
+                    <div class="col-6">
+                        <input type="radio" class="btn-check" name="payment" id="pay-phonepe" value="PhonePe">
+                        <label class="btn btn-outline-primary w-100 py-2" for="pay-phonepe">
+                            <i class="fas fa-mobile-alt me-1"></i> PhonePe
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-save-price w-100 py-3 shadow-lg" onclick="completeCartSale()">
+                COMPLETE SALE <i class="fas fa-check-circle ms-2"></i>
+            </button>
+        </div>
+    </div>
+
     <!-- Bottom Nav for Mobile -->
     <div class="bottom-nav">
         <a href="javascript:void(0)" class="bottom-nav-item active" onclick="navigateTo('sales-entry')">
-            <i class="fas fa-cash-register"></i>
-            <span>Sales</span>
+            <i class="fas fa-home"></i>
+            <span>Home</span>
         </a>
-        <a href="javascript:void(0)" class="bottom-nav-item" onclick="navigateTo('daily-view')">
-            <i class="fas fa-calendar-day"></i>
-            <span>Daily</span>
+        <a href="javascript:void(0)" class="bottom-nav-item"
+            onclick="document.getElementById('category-list').scrollIntoView({behavior:'smooth'})">
+            <i class="fas fa-th-large"></i>
+            <span>Categories</span>
         </a>
-        {% if current_user.role == 'admin' %}
-        <a href="javascript:void(0)" class="bottom-nav-item" onclick="navigateTo('monthly-view')">
-            <i class="fas fa-chart-pie"></i>
-            <span>Stats</span>
+        <a href="javascript:void(0)" class="bottom-nav-item" onclick="document.getElementById('item-search').focus()">
+            <i class="fas fa-search"></i>
+            <span>Search</span>
         </a>
-        <a href="javascript:void(0)" class="bottom-nav-item" onclick="navigateTo('staff-performance-view')">
-            <i class="fas fa-award"></i>
-            <span>Teams</span>
+        <a href="javascript:void(0)" class="bottom-nav-item" onclick="toggleCart()">
+            <i class="fas fa-shopping-cart"></i>
+            <span>Cart</span>
+            <div class="cart-badge" id="cart-count-badge" style="display: none;">0</div>
         </a>
-        {% endif %}
+        <a href="javascript:void(0)" class="bottom-nav-item" onclick="toggleSidebar()">
+            <i class="fas fa-user-circle"></i>
+            <span>Profile</span>
+        </a>
     </div>
 
     <!-- Hidden File Input for Uploads -->

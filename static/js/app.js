@@ -1,10 +1,10 @@
 // Global State
 let currentTab = 'sales-entry';
-let menuItems = [];
-let pendingSaleItemId = null;
+let allMenuItems = [];
 let pendingPriceItemId = null;
 let activeCategory = 'All';
 let activeSearchQuery = '';
+let cart = [];
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
@@ -16,10 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setupUploadHandlers();
     initMobileGestures();
 
-    // Set initial tab based on role (Check both localStorage and common patterns)
+    // Set initial tab based on role
     const userRole = localStorage.getItem('user_role') || (document.querySelector('.badge.bg-danger') ? 'admin' : 'staff');
 
-    // Default to sales-entry for staff, daily-view for admin
     if (userRole === 'admin') {
         navigateTo('daily-view');
     } else {
@@ -48,7 +47,6 @@ function initMobileGestures() {
         const xDist = touchendX - touchstartX;
         const yDist = Math.abs(touchendY - touchstartY);
 
-        // Swipe from left edge (within first 50px) to right
         if (touchstartX < 50 && xDist > 100 && yDist < 50) {
             handleSmartBack();
         }
@@ -70,20 +68,13 @@ function handleSmartBack() {
 
 function initFilters() {
     const now = new Date();
-
-    // Daily filter
     const dailyInput = document.getElementById('daily-date-filter');
-    if (dailyInput) {
-        dailyInput.value = now.toISOString().split('T')[0];
-    }
+    if (dailyInput) dailyInput.value = now.toISOString().split('T')[0];
 
-    // Monthly filters
     const monthSelect = document.getElementById('monthly-month-filter');
     const yearSelect = document.getElementById('monthly-year-filter');
 
-    if (monthSelect) {
-        monthSelect.value = String(now.getMonth() + 1).padStart(2, '0');
-    }
+    if (monthSelect) monthSelect.value = String(now.getMonth() + 1).padStart(2, '0');
 
     if (yearSelect) {
         const currentYear = now.getFullYear();
@@ -97,7 +88,6 @@ function initFilters() {
         yearSelect.value = currentYear;
     }
 
-    // Staff filters
     const staffYearSelect = document.getElementById('staff-year-filter');
     if (staffYearSelect) {
         const currentYear = now.getFullYear();
@@ -115,20 +105,16 @@ function updateDateTime() {
     const now = new Date();
     const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
     const element = document.getElementById('current-datetime');
-    if (element) {
-        element.textContent = now.toLocaleDateString('en-US', options);
-    }
+    if (element) element.textContent = now.toLocaleDateString('en-US', options);
 }
 
 function navigateTo(tabId) {
-    // Sync Sidebar
     document.querySelectorAll('#sidebar .nav-link').forEach(link => {
         link.classList.remove('active');
         const onclickAttr = link.getAttribute('onclick');
         if (onclickAttr && onclickAttr.includes(tabId)) link.classList.add('active');
     });
 
-    // Sync Bottom Nav
     document.querySelectorAll('.bottom-nav-item').forEach(item => {
         item.classList.remove('active');
         const onclickAttr = item.getAttribute('onclick');
@@ -150,7 +136,6 @@ function navigateTo(tabId) {
     const titleElement = document.getElementById('page-title');
     if (titleElement) titleElement.textContent = titles[tabId];
 
-    // Update Mobile Header Title
     const mobileTitle = document.getElementById('mobile-current-page');
     if (mobileTitle) mobileTitle.textContent = titles[tabId];
 
@@ -161,24 +146,20 @@ function navigateTo(tabId) {
     if (tabId === 'yearly-view') loadYearlyDashboard();
     if (tabId === 'staff-performance-view') loadStaffPerformance();
 
-    // Auto-close sidebar on mobile after navigation
     if (window.innerWidth < 992) {
         const sidebar = document.getElementById('sidebar');
         if (sidebar) sidebar.classList.remove('active');
     }
 }
 
-// --- Sales Entry Logic ---
-let allMenuItems = [];
-
 async function loadMenuItems() {
     const container = document.getElementById('menu-container');
     if (container) {
         container.innerHTML = `
-            <div class="menu-item-card shimmer" style="height: 400px;"></div>
-            <div class="menu-item-card shimmer" style="height: 400px;"></div>
-            <div class="menu-item-card shimmer" style="height: 400px;"></div>
-            <div class="menu-item-card shimmer" style="height: 400px;"></div>
+            <div class="menu-item-card shimmer" style="height: 150px;"></div>
+            <div class="menu-item-card shimmer" style="height: 150px;"></div>
+            <div class="menu-item-card shimmer" style="height: 150px;"></div>
+            <div class="menu-item-card shimmer" style="height: 150px;"></div>
         `;
     }
 
@@ -190,7 +171,6 @@ async function loadMenuItems() {
         const response = await fetch(url);
         const data = await response.json();
 
-        // If it's a cold load (All items, no search), store it
         if (activeCategory === 'All' && !activeSearchQuery) {
             allMenuItems = data;
         }
@@ -205,12 +185,8 @@ async function loadMenuItems() {
 function handleSearch(query) {
     activeSearchQuery = query.trim();
     const clearBtn = document.getElementById('clear-search');
+    if (clearBtn) clearBtn.style.display = activeSearchQuery ? 'block' : 'none';
 
-    if (clearBtn) {
-        clearBtn.style.display = activeSearchQuery ? 'block' : 'none';
-    }
-
-    // Debounce search to avoid too many requests
     clearTimeout(window.searchTimeout);
     window.searchTimeout = setTimeout(() => {
         loadMenuItems();
@@ -233,7 +209,6 @@ function filterMenu(category, element) {
         element.classList.add('active');
         element.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     }
-
     loadMenuItems();
 }
 
@@ -273,19 +248,30 @@ function renderMenu(items) {
                 </div>
             ` : '';
 
+            const isOffer = item.is_offer === true;
+            const originalPrice = item.original_price || 0;
+            const currentPrice = item.price || 0;
+
+            const priceHtml = isOffer ? `
+                <div class="price-display-compact">
+                    <span class="price-original" style="text-decoration: line-through; opacity: 0.6; font-size: 0.8em;">₹${originalPrice.toFixed(0)}</span>
+                    <span class="price-arrow" style="margin: 0 4px; opacity: 0.8;">→</span>
+                    <span class="price-current fw-bold">₹${currentPrice.toFixed(0)}</span>
+                </div>
+            ` : `₹${currentPrice.toFixed(0)}`;
+
             card.innerHTML = `
                 ${adminControls}
                 <div class="item-img-container">
                     <img src="${imageUrl}" alt="${item.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300?text=${encodeURIComponent(item.name)}'">
                     <div class="img-overlay">
-                        <span class="price-badge">₹${(item.price || 0).toFixed(2)}</span>
+                        <span class="price-badge">${priceHtml}</span>
                     </div>
                 </div>
-                <div class="item-content">
-                    <div class="item-name">${item.name}</div>
-                    <div class="item-desc">Premium selection from our ${item.category} menu, prepared fresh for you.</div>
-                    <button class="add-btn" onclick="openPaymentModal('${item.item_id}', '${(item.name || 'Item').replace(/'/g, "\\'")}')">
-                        <i class="fas fa-plus-circle"></i> ADD SALE
+                <div class="item-content text-center">
+                    <div class="item-name fw-bold mb-2">${item.name}</div>
+                    <button class="add-btn w-100" onclick="addToCart('${item.item_id}', '${(item.name || 'Item').replace(/'/g, "\\'")}', ${item.price})">
+                        <i class="fas fa-plus"></i> ADD
                     </button>
                 </div>
             `;
@@ -296,26 +282,132 @@ function renderMenu(items) {
     }, 150);
 }
 
-function openPaymentModal(itemId, itemName) {
-    pendingSaleItemId = itemId;
-    document.getElementById('payment-modal-item-name').textContent = itemName;
+// --- Cart Logic ---
+function addToCart(id, name, price) {
+    const existing = cart.find(i => i.id === id);
+    if (existing) {
+        existing.qty++;
+    } else {
+        cart.push({ id, name, price, qty: 1 });
+    }
+    updateCartUI();
 
-    // Reset UI
-    document.getElementById('payment-selection-ui').style.display = 'block';
-    document.getElementById('payment-success-ui').style.display = 'none';
-    document.querySelectorAll('.payment-card').forEach(c => {
-        c.classList.remove('active');
-    });
+    // Animate badge
+    const badge = document.getElementById('cart-count-badge');
+    if (badge) {
+        badge.classList.remove('pulse');
+        void badge.offsetWidth;
+        badge.classList.add('pulse');
+    }
 
-    const modalEl = document.getElementById('paymentModal');
-    const modal = new bootstrap.Modal(modalEl);
-    modal.show();
+    showToast(`${name} added!`, 'success');
 }
 
+function updateCartUI() {
+    const count = cart.reduce((acc, item) => acc + item.qty, 0);
+    const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+
+    const badge = document.getElementById('cart-count-badge');
+    if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    const cartList = document.getElementById('cart-items-list');
+    const totalEl = document.getElementById('cart-total');
+    if (totalEl) totalEl.textContent = `₹${total}`;
+
+    if (cartList) {
+        if (cart.length === 0) {
+            cartList.innerHTML = `
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-shopping-basket fa-3x mb-3 opacity-20"></i>
+                    <p>Your cart is empty</p>
+                </div>`;
+            return;
+        }
+
+        cartList.innerHTML = cart.map(item => `
+            <div class="cart-item">
+                <div>
+                    <div class="fw-bold">${item.name}</div>
+                    <div class="small text-muted">₹${item.price} each</div>
+                </div>
+                <div class="quantity-control">
+                    <button class="qty-btn" onclick="updateQty('${item.id}', -1)">-</button>
+                    <span class="fw-bold">${item.qty}</span>
+                    <button class="qty-btn" onclick="updateQty('${item.id}', 1)">+</button>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+function updateQty(id, delta) {
+    const item = cart.find(i => i.id === id);
+    if (!item) return;
+    item.qty += delta;
+    if (item.qty <= 0) {
+        cart = cart.filter(i => i.id !== id);
+    }
+    updateCartUI();
+}
+
+function toggleCart() {
+    const panel = document.getElementById('cart-panel');
+    const overlay = document.getElementById('cart-overlay');
+    if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        overlay.style.display = 'none';
+    } else {
+        panel.classList.add('open');
+        overlay.style.display = 'block';
+        updateCartUI();
+    }
+}
+
+async function completeCartSale() {
+    if (cart.length === 0) {
+        showToast('Cart is empty!', 'warning');
+        return;
+    }
+
+    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+
+    try {
+        showToast('Processing sale...', 'info');
+
+        for (const item of cart) {
+            for (let i = 0; i < item.qty; i++) {
+                await fetch('/api/record-sale', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        item_id: item.id,
+                        payment_method: paymentMethod
+                    })
+                });
+            }
+        }
+
+        showToast('Order completed successfully!', 'success');
+        cart = [];
+        updateCartUI();
+        toggleCart();
+
+    } catch (error) {
+        showToast('Error processing order', 'danger');
+    }
+}
+
+// --- Admin Logic ---
 function openPriceModal(itemId, itemName, currentPrice) {
     pendingPriceItemId = itemId;
     document.getElementById('price-modal-item-name').textContent = itemName;
+    document.getElementById('current-item-price-display').value = `₹${parseFloat(currentPrice).toFixed(2)}`;
     document.getElementById('new-item-price').value = currentPrice;
+    document.getElementById('is-offer-switch').checked = false;
+    document.getElementById('price-change-reason').value = '';
 
     const modalEl = document.getElementById('priceModal');
     const modal = new bootstrap.Modal(modalEl);
@@ -326,17 +418,22 @@ async function saveNewPrice() {
     if (!pendingPriceItemId) return;
 
     const newPrice = document.getElementById('new-item-price').value;
+    const isOffer = document.getElementById('is-offer-switch').checked;
+    const reason = document.getElementById('price-change-reason').value;
+
     if (!newPrice || parseFloat(newPrice) <= 0) {
         showToast('Please enter a valid price greater than 0', 'warning');
         return;
     }
 
     try {
-        const response = await fetch(`/api/menu/update-price/${pendingPriceItemId}`, {
+        const response = await fetch(`/api/admin/update-price/${pendingPriceItemId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                price: parseFloat(newPrice)
+                price: parseFloat(newPrice),
+                is_offer: isOffer,
+                reason: reason
             })
         });
 
@@ -345,8 +442,6 @@ async function saveNewPrice() {
             const modalEl = document.getElementById('priceModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
             if (modal) modal.hide();
-
-            // Re-fetch menu items to reflect changes globally
             loadMenuItems();
         } else {
             const errorData = await response.json();
@@ -359,41 +454,7 @@ async function saveNewPrice() {
     }
 }
 
-async function confirmSale(paymentMethod, element) {
-    if (!pendingSaleItemId) return;
-
-    try {
-        const response = await fetch('/api/record-sale', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                item_id: pendingSaleItemId,
-                payment_method: paymentMethod
-            })
-        });
-
-        if (response.ok) {
-            document.getElementById('payment-selection-ui').style.display = 'none';
-            document.getElementById('payment-success-ui').style.display = 'block';
-
-            showToast(`Recorded ${paymentMethod} sale successfully!`, 'success');
-
-            setTimeout(() => {
-                const modalEl = document.getElementById('paymentModal');
-                const modal = bootstrap.Modal.getInstance(modalEl);
-                if (modal) modal.hide();
-            }, 1000);
-        } else {
-            const errorData = await response.json();
-            showToast(errorData.error || 'Failed to record sale', 'danger');
-        }
-    } catch (error) {
-        showToast('Server error', 'danger');
-    } finally {
-        pendingSaleItemId = null;
-    }
-}
-
+// --- Other Utilities ---
 let activeUploadItemId = null;
 function triggerUpload(event, itemId) {
     event.stopPropagation();
@@ -443,7 +504,6 @@ function toggleDarkMode() {
     if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
 }
 
-// Initialize theme
 if (localStorage.getItem('theme') === 'dark') {
     document.body.classList.add('dark-mode');
     document.addEventListener('DOMContentLoaded', () => {
@@ -451,8 +511,6 @@ if (localStorage.getItem('theme') === 'dark') {
         if (icon) icon.className = 'fas fa-sun';
     });
 }
-
-// --- Dashboard Data Loading ---
 
 async function loadDailyDashboard() {
     const dateInput = document.getElementById('daily-date-filter');
@@ -497,7 +555,6 @@ async function loadYearlyDashboard() {
 async function loadStaffPerformance() {
     try {
         const date = document.getElementById('staff-date-filter').value;
-        // Check if other filters exist
         const monthFilter = document.getElementById('staff-month-filter');
         const yearFilter = document.getElementById('staff-year-filter');
 
@@ -549,7 +606,8 @@ async function loadStaffPerformance() {
 }
 
 function resetStaffFilters() {
-    document.getElementById('staff-date-filter').value = '';
+    const dFilter = document.getElementById('staff-date-filter');
+    if (dFilter) dFilter.value = '';
     const monthFilter = document.getElementById('staff-month-filter');
     const yearFilter = document.getElementById('staff-year-filter');
     if (monthFilter) monthFilter.value = '';
@@ -560,6 +618,7 @@ function resetStaffFilters() {
 function showToast(message, type = 'success') {
     const toastEl = document.getElementById('liveToast');
     const toastMsg = document.getElementById('toast-message');
+    if (!toastEl || !toastMsg) return;
 
     toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
     toastMsg.textContent = message;

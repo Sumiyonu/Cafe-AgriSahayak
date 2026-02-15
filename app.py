@@ -433,7 +433,8 @@ def upload_image():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/menu/update-price/<int:item_id>', methods=['PUT'])
+@app.route('/api/admin/update-price/<int:item_id>', methods=['PUT'])
+@app.route('/admin/update-price/<int:item_id>', methods=['PUT']) # Alias for shorter URL
 @admin_required
 def update_price(item_id):
     try:
@@ -460,11 +461,20 @@ def update_price(item_id):
             return jsonify({"error": "Item not found"}), 404
             
         old_price = item.get('price', 0)
+        is_offer = data.get('is_offer', False)
         
-        # Update price
+        update_data = {"price": new_price}
+        if is_offer:
+            update_data["is_offer"] = True
+            update_data["original_price"] = old_price if not item.get('is_offer') else item.get('original_price', old_price)
+        else:
+            update_data["is_offer"] = False
+            update_data["original_price"] = 0
+
+        # Update price and offer status
         menu_items.update_one(
             {"item_id": int(item_id)},
-            {"$set": {"price": new_price}}
+            {"$set": update_data}
         )
         
         # Log the change
@@ -474,6 +484,8 @@ def update_price(item_id):
             "item_name": item['name'],
             "old_price": old_price,
             "new_price": new_price,
+            "is_offer": is_offer,
+            "reason": data.get('reason', ''),
             "changed_by": current_user.username,
             "changed_at": datetime.now()
         })
