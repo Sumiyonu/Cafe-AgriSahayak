@@ -441,8 +441,30 @@ def serve_uploads(filename):
 @login_required
 def get_menu_items():
     try:
+        search_query = request.args.get('search')
+        category = request.args.get('category', 'All')
+        
+        query = {"is_active": True}
+        
+        # Apply category filter
+        if category and category != 'All':
+            query["category"] = category
+            
+        # Apply search filter
+        if search_query:
+            search_regex = {"$regex": search_query, "$options": "i"}
+            if "category" in query:
+                # If category is already filtered, just search in name
+                query["name"] = search_regex
+            else:
+                # Search in both name and category
+                query["$or"] = [
+                    {"name": search_regex},
+                    {"category": search_regex}
+                ]
+        
         # Sort by order_count descending (most ordered first)
-        items = list(menu_items.find({"is_active": True}, {"_id": 0}).sort("order_count", -1))
+        items = list(menu_items.find(query, {"_id": 0}).sort("order_count", -1))
         return jsonify(items)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

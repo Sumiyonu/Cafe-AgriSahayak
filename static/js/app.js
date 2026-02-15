@@ -2,6 +2,8 @@
 let currentTab = 'sales-entry';
 let menuItems = [];
 let pendingSaleItemId = null;
+let activeCategory = 'All';
+let activeSearchQuery = '';
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,15 +13,59 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMenuItems();
     setupTooltips();
     setupUploadHandlers();
+    initMobileGestures();
 
-    // Set initial tab based on role
-    const userRole = localStorage.getItem('user_role');
+    // Set initial tab based on role (Check both localStorage and common patterns)
+    const userRole = localStorage.getItem('user_role') || (document.querySelector('.badge.bg-danger') ? 'admin' : 'staff');
+
+    // Default to sales-entry for staff, daily-view for admin
     if (userRole === 'admin') {
         navigateTo('daily-view');
     } else {
         navigateTo('sales-entry');
     }
 });
+
+function initMobileGestures() {
+    let touchstartX = 0;
+    let touchendX = 0;
+    let touchstartY = 0;
+    let touchendY = 0;
+
+    document.addEventListener('touchstart', e => {
+        touchstartX = e.changedTouches[0].screenX;
+        touchstartY = e.changedTouches[0].screenY;
+    }, false);
+
+    document.addEventListener('touchend', e => {
+        touchendX = e.changedTouches[0].screenX;
+        touchendY = e.changedTouches[0].screenY;
+        handleGesture();
+    }, false);
+
+    function handleGesture() {
+        const xDist = touchendX - touchstartX;
+        const yDist = Math.abs(touchendY - touchstartY);
+
+        // Swipe from left edge (within first 50px) to right
+        if (touchstartX < 50 && xDist > 100 && yDist < 50) {
+            handleSmartBack();
+        }
+    }
+}
+
+function handleSmartBack() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        const userRole = localStorage.getItem('user_role') || (document.querySelector('.badge.bg-danger') ? 'admin' : 'staff');
+        if (userRole === 'admin') {
+            navigateTo('daily-view');
+        } else {
+            navigateTo('sales-entry');
+        }
+    }
+}
 
 function initFilters() {
     const now = new Date();
@@ -74,35 +120,38 @@ function updateDateTime() {
 }
 
 function navigateTo(tabId) {
-    document.querySelectorAll('.nav-link').forEach(link => {
+    // Sync Sidebar
+    document.querySelectorAll('#sidebar .nav-link').forEach(link => {
         link.classList.remove('active');
         const onclickAttr = link.getAttribute('onclick');
-        if (onclickAttr && onclickAttr.includes(tabId)) {
-            link.classList.add('active');
-        }
+        if (onclickAttr && onclickAttr.includes(tabId)) link.classList.add('active');
     });
 
-    document.querySelectorAll('.dashboard-section').forEach(sec => {
-        sec.classList.remove('active');
+    // Sync Bottom Nav
+    document.querySelectorAll('.bottom-nav-item').forEach(item => {
+        item.classList.remove('active');
+        const onclickAttr = item.getAttribute('onclick');
+        if (onclickAttr && onclickAttr.includes(tabId)) item.classList.add('active');
     });
 
+    document.querySelectorAll('.dashboard-section').forEach(sec => sec.classList.remove('active'));
     const targetSection = document.getElementById(tabId);
-    if (targetSection) {
-        targetSection.classList.add('active');
-    }
+    if (targetSection) targetSection.classList.add('active');
 
     const titles = {
-        'sales-entry': 'Sales Entry',
-        'daily-view': 'Daily Dashboard',
-        'monthly-view': 'Monthly Dashboard',
-        'yearly-view': 'Yearly Dashboard',
-        'staff-performance-view': 'Staff Performance'
+        'sales-entry': 'Menu & Sales',
+        'daily-view': 'Daily Stats',
+        'monthly-view': 'Business Health',
+        'yearly-view': 'Annual Growth',
+        'staff-performance-view': 'Team Rankings'
     };
 
     const titleElement = document.getElementById('page-title');
-    if (titleElement) {
-        titleElement.textContent = titles[tabId];
-    }
+    if (titleElement) titleElement.textContent = titles[tabId];
+
+    // Update Mobile Header Title
+    const mobileTitle = document.getElementById('mobile-current-page');
+    if (mobileTitle) mobileTitle.textContent = titles[tabId];
 
     currentTab = tabId;
 
@@ -110,55 +159,129 @@ function navigateTo(tabId) {
     if (tabId === 'monthly-view') loadMonthlyDashboard();
     if (tabId === 'yearly-view') loadYearlyDashboard();
     if (tabId === 'staff-performance-view') loadStaffPerformance();
+
+    // Auto-close sidebar on mobile after navigation
+    if (window.innerWidth < 992) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.remove('active');
+    }
 }
 
 // --- Sales Entry Logic ---
 let allMenuItems = [];
 
 async function loadMenuItems() {
+    const container = document.getElementById('menu-container');
+    if (container) {
+        container.innerHTML = `
+            <div class="menu-item-card shimmer" style="height: 400px;"></div>
+            <div class="menu-item-card shimmer" style="height: 400px;"></div>
+            <div class="menu-item-card shimmer" style="height: 400px;"></div>
+            <div class="menu-item-card shimmer" style="height: 400px;"></div>
+        `;
+    }
+
     try {
-        const response = await fetch('/api/menu-items');
-        allMenuItems = await response.json();
-        renderMenu(allMenuItems);
+        const url = new URL('/api/menu-items', window.location.origin);
+        if (activeCategory !== 'All') url.searchParams.append('category', activeCategory);
+        if (activeSearchQuery) url.searchParams.append('search', activeSearchQuery);
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        // If it's a cold load (All items, no search), store it
+        if (activeCategory === 'All' && !activeSearchQuery) {
+            allMenuItems = data;
+        }
+
+        renderMenu(data);
     } catch (error) {
         console.error('Error loading menu:', error);
         showToast('Error loading menu items', 'danger');
     }
 }
 
+function handleSearch(query) {
+    activeSearchQuery = query.trim();
+    const clearBtn = document.getElementById('clear-search');
+
+    if (clearBtn) {
+        clearBtn.style.display = activeSearchQuery ? 'block' : 'none';
+    }
+
+    // Debounce search to avoid too many requests
+    clearTimeout(window.searchTimeout);
+    window.searchTimeout = setTimeout(() => {
+        loadMenuItems();
+    }, 300);
+}
+
+function clearSearch() {
+    const searchInput = document.getElementById('item-search');
+    if (searchInput) searchInput.value = '';
+    activeSearchQuery = '';
+    const clearBtn = document.getElementById('clear-search');
+    if (clearBtn) clearBtn.style.display = 'none';
+    loadMenuItems();
+}
+
+function filterMenu(category, element) {
+    activeCategory = category;
+    document.querySelectorAll('.category-pill').forEach(pill => pill.classList.remove('active'));
+    if (element) {
+        element.classList.add('active');
+        element.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+
+    loadMenuItems();
+}
+
 function renderMenu(items) {
     const container = document.getElementById('menu-container');
     if (!container) return;
-    container.innerHTML = '';
 
-    if (items.length === 0) {
-        container.innerHTML = '<div class="col-12 text-center text-muted">No items found</div>';
-        return;
-    }
+    container.style.opacity = '0.3';
 
-    items.forEach(item => {
-        const card = document.createElement('div');
-        const catClass = item.category.toLowerCase().replace(/\s+/g, '-');
-        card.className = `menu-item-card category-${catClass}`;
+    setTimeout(() => {
+        container.innerHTML = '';
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <h3>No items found</h3>
+                    <p>Try a different search term or category.</p>
+                </div>`;
+            container.style.opacity = '1';
+            return;
+        }
 
-        const imageUrl = item.image_url || `https://via.placeholder.com/150?text=${encodeURIComponent(item.name)}`;
+        items.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'menu-item-card';
+            card.style.animationDelay = `${index * 0.05}s`;
 
-        card.innerHTML = `
-            <div class="upload-icon" title="Upload Image" onclick="triggerUpload(event, '${item.item_id}')">
-                <i class="fas fa-camera"></i>
-            </div>
-            <div class="item-image-box">
-                <img src="${imageUrl}" alt="${item.name}">
-            </div>
-            <div class="category-badge bg-light text-dark shadow-sm">${item.category}</div>
-            <div class="fw-bold">${item.name}</div>
-            <div class="fw-bold text-primary mb-2">₹${(item.price || 0).toFixed(2)}</div>
-            <button class="order-btn" onclick="openPaymentModal('${item.item_id}', '${(item.name || 'Item').replace(/'/g, "\\'")}')">
-                <i class="fas fa-plus me-1"></i> ADD SALE
-            </button>
-        `;
-        container.appendChild(card);
-    });
+            const imageUrl = item.image_url || `https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&q=80&w=400&h=300`;
+
+            card.innerHTML = `
+                <div class="item-img-container">
+                    <img src="${imageUrl}" alt="${item.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300?text=${encodeURIComponent(item.name)}'">
+                    <div class="img-overlay">
+                        <span class="price-badge">₹${(item.price || 0).toFixed(2)}</span>
+                    </div>
+                </div>
+                <div class="item-content">
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-desc">Premium selection from our ${item.category} menu, prepared fresh for you.</div>
+                    <button class="add-btn" onclick="openPaymentModal('${item.item_id}', '${(item.name || 'Item').replace(/'/g, "\\'")}')">
+                        <i class="fas fa-plus-circle"></i> ADD SALE
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+
+        container.style.opacity = '1';
+    }, 150);
 }
 
 function openPaymentModal(itemId, itemName) {
@@ -253,18 +376,21 @@ function setupUploadHandlers() {
     });
 }
 
-function filterMenu(category) {
-    document.querySelectorAll('.btn-group .btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.textContent === category) btn.classList.add('active');
-    });
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    const icon = document.querySelector('.theme-toggle i');
+    if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+}
 
-    if (category === 'All') {
-        renderMenu(allMenuItems);
-    } else {
-        const filtered = allMenuItems.filter(item => item.category === category);
-        renderMenu(filtered);
-    }
+// Initialize theme
+if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark-mode');
+    document.addEventListener('DOMContentLoaded', () => {
+        const icon = document.querySelector('.theme-toggle i');
+        if (icon) icon.className = 'fas fa-sun';
+    });
 }
 
 // --- Dashboard Data Loading ---
@@ -312,8 +438,12 @@ async function loadYearlyDashboard() {
 async function loadStaffPerformance() {
     try {
         const date = document.getElementById('staff-date-filter').value;
-        const month = document.getElementById('staff-month-filter').value;
-        const year = document.getElementById('staff-year-filter').value;
+        // Check if other filters exist
+        const monthFilter = document.getElementById('staff-month-filter');
+        const yearFilter = document.getElementById('staff-year-filter');
+
+        const month = monthFilter ? monthFilter.value : '';
+        const year = yearFilter ? yearFilter.value : '';
 
         let queryParams = [];
         if (date) queryParams.push(`date=${date}`);
@@ -334,15 +464,23 @@ async function loadStaffPerformance() {
 
         data.forEach((staff, index) => {
             const tr = document.createElement('tr');
+            let statusBadge = '';
+            if (index === 0) statusBadge = '<span class="badge bg-warning text-dark"><i class="fas fa-crown me-1"></i> Winner</span>';
+            else if (index === 1) statusBadge = '<span class="badge bg-secondary"><i class="fas fa-star me-1"></i> Star</span>';
+            else statusBadge = '<span class="badge bg-light text-muted">Reliable</span>';
+
             tr.innerHTML = `
-                <td class="ps-4 fw-bold">${staff._id || 'Unknown'}</td>
-                <td><span class="badge bg-light text-dark">${staff.total_sales} orders</span></td>
-                <td class="text-success fw-bold">₹${(staff.total_revenue || 0).toFixed(2)}</td>
-                <td>
-                    <span class="badge ${index === 0 ? 'bg-warning text-dark' : 'bg-info'}">
-                        ${index === 0 ? '🏆 Top Performer' : `#${index + 1}`}
-                    </span>
+                <td class="ps-4 fw-bold">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                            ${staff._id.substring(0, 2).toUpperCase()}
+                        </div>
+                        ${staff._id || 'Unknown'}
+                    </div>
                 </td>
+                <td><div class="fw-bold">${staff.total_sales}</div><small class="text-muted">Total Orders</small></td>
+                <td class="text-success fw-bold">₹${(staff.total_revenue || 0).toFixed(2)}</td>
+                <td>${statusBadge}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -353,8 +491,10 @@ async function loadStaffPerformance() {
 
 function resetStaffFilters() {
     document.getElementById('staff-date-filter').value = '';
-    document.getElementById('staff-month-filter').value = '';
-    document.getElementById('staff-year-filter').value = '';
+    const monthFilter = document.getElementById('staff-month-filter');
+    const yearFilter = document.getElementById('staff-year-filter');
+    if (monthFilter) monthFilter.value = '';
+    if (yearFilter) yearFilter.value = '';
     loadStaffPerformance();
 }
 
@@ -370,7 +510,8 @@ function showToast(message, type = 'success') {
 }
 
 function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('active');
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.toggle('active');
 }
 
 function setupTooltips() {
