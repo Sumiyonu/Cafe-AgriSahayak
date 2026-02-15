@@ -740,6 +740,12 @@
             transition: opacity 0.4s ease, transform 0.4s ease;
         }
 
+        .dashboard-section.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
         /* Admin Edit Price Button */
         .edit-price-btn {
             background: var(--accent);
@@ -1119,73 +1125,75 @@
                 </div>
             </div>
         </div>
-        <!-- Price Edit Modal -->
-        <div class="modal fade" id="priceModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="fas fa-tag me-2"></i>Update Item Price</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                            aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body text-center p-4">
-                        <h5 id="price-modal-item-name" class="mb-4">Item Name</h5>
-                        <div class="form-floating mb-3">
-                            <input type="number" class="form-control" id="new-item-price" placeholder="0.00" step="0.01"
-                                min="0">
-                            <label for="new-item-price">New Price (₹)</label>
-                        </div>
-                        <div class="d-grid">
-                            <button class="btn btn-save-price" onclick="saveNewPrice()">
-                                <i class="fas fa-save me-2"></i>Update Price
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    </div>
 
-        <!-- Toast UI -->
-        <div class="toast-container">
-            <div id="liveToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive"
-                aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body" id="toast-message"></div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+    <!-- Price Edit Modal -->
+    <div class="modal fade" id="priceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-tag me-2"></i>Update Item Price</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
+                <div class="modal-body text-center p-4">
+                    <h5 id="price-modal-item-name" class="mb-4">Item Name</h5>
+                    <div class="form-floating mb-3">
+                        <input type="number" class="form-control" id="new-item-price" placeholder="0.00" step="0.01"
+                            min="0">
+                        <label for="new-item-price">New Price (₹)</label>
+                    </div>
+                    <div class="d-grid">
+                        <button class="btn btn-save-price" onclick="saveNewPrice()">
+                            <i class="fas fa-save me-2"></i>Update Price
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
+    </div>
 
-        <!-- Bottom Nav for Mobile -->
-        <div class="bottom-nav">
-            <a href="javascript:void(0)" class="bottom-nav-item active" onclick="navigateTo('sales-entry')">
-                <i class="fas fa-cash-register"></i>
-                <span>Sales</span>
-            </a>
-            <a href="javascript:void(0)" class="bottom-nav-item" onclick="navigateTo('daily-view')">
-                <i class="fas fa-calendar-day"></i>
-                <span>Daily</span>
-            </a>
-            {% if current_user.role == 'admin' %}
-            <a href="javascript:void(0)" class="bottom-nav-item" onclick="navigateTo('monthly-view')">
-                <i class="fas fa-chart-pie"></i>
-                <span>Stats</span>
-            </a>
-            <a href="javascript:void(0)" class="bottom-nav-item" onclick="navigateTo('staff-performance-view')">
-                <i class="fas fa-award"></i>
-                <span>Teams</span>
-            </a>
-            {% endif %}
+    <!-- Toast UI -->
+    <div class="toast-container">
+        <div id="liveToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive"
+            aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toast-message"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
         </div>
+    </div>
 
-        <!-- Hidden File Input for Uploads -->
-        <input type="file" id="global-file-input" style="display: none;" accept="image/*">
+    <!-- Bottom Nav for Mobile -->
+    <div class="bottom-nav">
+        <a href="javascript:void(0)" class="bottom-nav-item active" onclick="navigateTo('sales-entry')">
+            <i class="fas fa-cash-register"></i>
+            <span>Sales</span>
+        </a>
+        <a href="javascript:void(0)" class="bottom-nav-item" onclick="navigateTo('daily-view')">
+            <i class="fas fa-calendar-day"></i>
+            <span>Daily</span>
+        </a>
+        {% if current_user.role == 'admin' %}
+        <a href="javascript:void(0)" class="bottom-nav-item" onclick="navigateTo('monthly-view')">
+            <i class="fas fa-chart-pie"></i>
+            <span>Stats</span>
+        </a>
+        <a href="javascript:void(0)" class="bottom-nav-item" onclick="navigateTo('staff-performance-view')">
+            <i class="fas fa-award"></i>
+            <span>Teams</span>
+        </a>
+        {% endif %}
+    </div>
 
-        <!-- Scripts -->
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <!-- Hidden File Input for Uploads -->
+    <input type="file" id="global-file-input" style="display: none;" accept="image/*">
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 
 </html>
