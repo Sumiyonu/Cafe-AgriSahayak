@@ -1,10 +1,9 @@
 // Global State
 let currentTab = 'sales-entry';
 let allMenuItems = [];
-let pendingPriceItemId = null;
+let pendingSaleItemId = null;
 let activeCategory = 'All';
 let activeSearchQuery = '';
-let cart = [];
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Set initial tab based on role
     const userRole = localStorage.getItem('user_role') || (document.querySelector('.badge.bg-danger') ? 'admin' : 'staff');
-
     if (userRole === 'admin') {
         navigateTo('daily-view');
     } else {
@@ -29,41 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
 function initMobileGestures() {
     let touchstartX = 0;
     let touchendX = 0;
-    let touchstartY = 0;
-    let touchendY = 0;
-
-    document.addEventListener('touchstart', e => {
-        touchstartX = e.changedTouches[0].screenX;
-        touchstartY = e.changedTouches[0].screenY;
-    }, false);
-
+    document.addEventListener('touchstart', e => touchstartX = e.changedTouches[0].screenX, false);
     document.addEventListener('touchend', e => {
         touchendX = e.changedTouches[0].screenX;
-        touchendY = e.changedTouches[0].screenY;
-        handleGesture();
+        if (touchstartX < 50 && (touchendX - touchstartX) > 100) toggleSidebar();
     }, false);
-
-    function handleGesture() {
-        const xDist = touchendX - touchstartX;
-        const yDist = Math.abs(touchendY - touchstartY);
-
-        if (touchstartX < 50 && xDist > 100 && yDist < 50) {
-            handleSmartBack();
-        }
-    }
-}
-
-function handleSmartBack() {
-    if (window.history.length > 1) {
-        window.history.back();
-    } else {
-        const userRole = localStorage.getItem('user_role') || (document.querySelector('.badge.bg-danger') ? 'admin' : 'staff');
-        if (userRole === 'admin') {
-            navigateTo('daily-view');
-        } else {
-            navigateTo('sales-entry');
-        }
-    }
 }
 
 function initFilters() {
@@ -73,95 +41,57 @@ function initFilters() {
 
     const monthSelect = document.getElementById('monthly-month-filter');
     const yearSelect = document.getElementById('monthly-year-filter');
-
     if (monthSelect) monthSelect.value = String(now.getMonth() + 1).padStart(2, '0');
-
-    if (yearSelect) {
-        const currentYear = now.getFullYear();
-        yearSelect.innerHTML = '';
-        for (let i = currentYear + 2; i >= 2024; i--) {
-            const opt = document.createElement('option');
-            opt.value = i;
-            opt.textContent = i;
-            yearSelect.appendChild(opt);
-        }
-        yearSelect.value = currentYear;
-    }
-
-    const staffYearSelect = document.getElementById('staff-year-filter');
-    if (staffYearSelect) {
-        const currentYear = now.getFullYear();
-        staffYearSelect.innerHTML = '<option value="">All Years</option>';
-        for (let i = currentYear + 2; i >= 2024; i--) {
-            const opt = document.createElement('option');
-            opt.value = i;
-            opt.textContent = i;
-            staffYearSelect.appendChild(opt);
-        }
-    }
+    if (yearSelect) yearSelect.value = now.getFullYear();
 }
 
 function updateDateTime() {
     const now = new Date();
-    const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+    const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     const element = document.getElementById('current-datetime');
     if (element) element.textContent = now.toLocaleDateString('en-US', options);
 }
 
 function navigateTo(tabId) {
-    document.querySelectorAll('#sidebar .nav-link').forEach(link => {
-        link.classList.remove('active');
-        const onclickAttr = link.getAttribute('onclick');
-        if (onclickAttr && onclickAttr.includes(tabId)) link.classList.add('active');
-    });
-
-    document.querySelectorAll('.bottom-nav-item').forEach(item => {
-        item.classList.remove('active');
-        const onclickAttr = item.getAttribute('onclick');
-        if (onclickAttr && onclickAttr.includes(tabId)) item.classList.add('active');
-    });
-
     document.querySelectorAll('.dashboard-section').forEach(sec => sec.classList.remove('active'));
-    const targetSection = document.getElementById(tabId);
-    if (targetSection) targetSection.classList.add('active');
+    document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+
+    const target = document.getElementById(tabId);
+    if (target) target.classList.add('active');
+
+    // Update sidebar links
+    document.querySelectorAll('.nav-link').forEach(link => {
+        if (link.getAttribute('onclick')?.includes(tabId)) link.classList.add('active');
+    });
 
     const titles = {
         'sales-entry': 'Menu & Sales',
-        'daily-view': 'Daily Stats',
-        'monthly-view': 'Business Health',
-        'yearly-view': 'Annual Growth',
-        'staff-performance-view': 'Team Rankings'
+        'daily-view': 'Daily Analytics',
+        'monthly-view': 'Business Performance',
+        'staff-performance-view': 'Team Rankings',
+        'admin-items-view': 'Item Management'
     };
 
-    const titleElement = document.getElementById('page-title');
-    if (titleElement) titleElement.textContent = titles[tabId];
+    const titleEl = document.getElementById('page-title');
+    if (titleEl) titleEl.textContent = titles[tabId] || 'Dashboard';
 
     const mobileTitle = document.getElementById('mobile-current-page');
-    if (mobileTitle) mobileTitle.textContent = titles[tabId];
+    if (mobileTitle) mobileTitle.textContent = titles[tabId] || 'Dashboard';
 
     currentTab = tabId;
-
+    if (tabId === 'admin-items-view') loadAdminItems();
     if (tabId === 'daily-view') loadDailyDashboard();
     if (tabId === 'monthly-view') loadMonthlyDashboard();
-    if (tabId === 'yearly-view') loadYearlyDashboard();
     if (tabId === 'staff-performance-view') loadStaffPerformance();
 
     if (window.innerWidth < 992) {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) sidebar.classList.remove('active');
+        document.getElementById('sidebar')?.classList.remove('active');
     }
 }
 
 async function loadMenuItems() {
     const container = document.getElementById('menu-container');
-    if (container) {
-        container.innerHTML = `
-            <div class="menu-item-card shimmer" style="height: 150px;"></div>
-            <div class="menu-item-card shimmer" style="height: 150px;"></div>
-            <div class="menu-item-card shimmer" style="height: 150px;"></div>
-            <div class="menu-item-card shimmer" style="height: 150px;"></div>
-        `;
-    }
+    if (!container) return;
 
     try {
         const url = new URL('/api/menu-items', window.location.origin);
@@ -170,471 +100,273 @@ async function loadMenuItems() {
 
         const response = await fetch(url);
         const data = await response.json();
-
-        if (activeCategory === 'All' && !activeSearchQuery) {
-            allMenuItems = data;
-        }
-
         renderMenu(data);
     } catch (error) {
-        console.error('Error loading menu:', error);
-        showToast('Error loading menu items', 'danger');
+        showToast('Error loading menu', 'danger');
     }
-}
-
-function handleSearch(query) {
-    activeSearchQuery = query.trim();
-    const clearBtn = document.getElementById('clear-search');
-    if (clearBtn) clearBtn.style.display = activeSearchQuery ? 'block' : 'none';
-
-    clearTimeout(window.searchTimeout);
-    window.searchTimeout = setTimeout(() => {
-        loadMenuItems();
-    }, 300);
-}
-
-function clearSearch() {
-    const searchInput = document.getElementById('item-search');
-    if (searchInput) searchInput.value = '';
-    activeSearchQuery = '';
-    const clearBtn = document.getElementById('clear-search');
-    if (clearBtn) clearBtn.style.display = 'none';
-    loadMenuItems();
-}
-
-function filterMenu(category, element) {
-    activeCategory = category;
-    document.querySelectorAll('.category-pill').forEach(pill => pill.classList.remove('active'));
-    if (element) {
-        element.classList.add('active');
-        element.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
-    loadMenuItems();
 }
 
 function renderMenu(items) {
     const container = document.getElementById('menu-container');
     if (!container) return;
 
-    const userRole = localStorage.getItem('user_role') || (document.querySelector('.badge.bg-danger') ? 'admin' : 'staff');
+    container.innerHTML = '';
+    if (items.length === 0) {
+        container.innerHTML = '<div class="empty-state text-center py-5 opacity-50"><i class="fas fa-search fa-3x mb-3"></i><p>No items found</p></div>';
+        return;
+    }
 
-    container.style.opacity = '0.3';
+    const isMobile = window.innerWidth <= 768;
 
-    setTimeout(() => {
-        container.innerHTML = '';
-        if (items.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-search"></i>
-                    <h3>No items found</h3>
-                    <p>Try a different search term or category.</p>
-                </div>`;
-            container.style.opacity = '1';
-            return;
-        }
-
-        items.forEach((item, index) => {
+    if (isMobile) {
+        // Mobile Compact List View
+        items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.onclick = () => openPaymentModal(item.item_id, item.name);
+            row.innerHTML = `
+                <img src="${item.image_url || 'https://via.placeholder.com/60'}" class="item-row-img" alt="${item.name}">
+                <div class="item-row-info">
+                    <div class="item-row-name">${item.name}</div>
+                    <div class="item-row-price">₹${item.price}</div>
+                </div>
+                <div class="item-row-action">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    } else {
+        // Desktop Grid View (4 columns via CSS)
+        container.className = 'menu-grid';
+        items.forEach(item => {
             const card = document.createElement('div');
             card.className = 'menu-item-card';
-            card.style.animationDelay = `${index * 0.05}s`;
-
-            const imageUrl = item.image_url || `https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&q=80&w=400&h=300`;
-
-            const adminControls = userRole === 'admin' ? `
-                <div class="admin-controls">
-                    <button class="edit-price-btn" onclick="openPriceModal('${item.item_id}', '${(item.name || 'Item').replace(/'/g, "\\'")}', ${item.price})" title="Edit Price">
-                        <i class="fas fa-pencil-alt"></i>
-                    </button>
-                </div>
-            ` : '';
-
-            const isOffer = item.is_offer === true;
-            const originalPrice = item.original_price || 0;
-            const currentPrice = item.price || 0;
-
-            const priceHtml = isOffer ? `
-                <div class="price-display-compact">
-                    <span class="price-original" style="text-decoration: line-through; opacity: 0.6; font-size: 0.8em;">₹${originalPrice.toFixed(0)}</span>
-                    <span class="price-arrow" style="margin: 0 4px; opacity: 0.8;">→</span>
-                    <span class="price-current fw-bold">₹${currentPrice.toFixed(0)}</span>
-                </div>
-            ` : `₹${currentPrice.toFixed(0)}`;
-
             card.innerHTML = `
-                ${adminControls}
-                <div class="item-img-container">
-                    <img src="${imageUrl}" alt="${item.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300?text=${encodeURIComponent(item.name)}'">
+                <div class="item-img-container" onclick="openPaymentModal('${item.item_id}', '${item.name.replace(/'/g, "\\'")}')">
+                    <img src="${item.image_url || 'https://via.placeholder.com/200'}" alt="${item.name}">
                     <div class="img-overlay">
-                        <span class="price-badge">${priceHtml}</span>
+                        <span class="price-badge">₹${item.price}</span>
                     </div>
                 </div>
-                <div class="item-content text-center">
-                    <div class="item-name fw-bold mb-2">${item.name}</div>
-                    <button class="add-btn w-100" onclick="addToCart('${item.item_id}', '${(item.name || 'Item').replace(/'/g, "\\'")}', ${item.price})">
-                        <i class="fas fa-plus"></i> ADD
-                    </button>
+                <div class="item-content">
+                    <div class="item-name text-center mb-0">${item.name}</div>
                 </div>
             `;
             container.appendChild(card);
         });
-
-        container.style.opacity = '1';
-    }, 150);
-}
-
-// --- Cart Logic ---
-function addToCart(id, name, price) {
-    const existing = cart.find(i => i.id === id);
-    if (existing) {
-        existing.qty++;
-    } else {
-        cart.push({ id, name, price, qty: 1 });
-    }
-    updateCartUI();
-
-    // Animate badge
-    const badge = document.getElementById('cart-count-badge');
-    if (badge) {
-        badge.classList.remove('pulse');
-        void badge.offsetWidth;
-        badge.classList.add('pulse');
-    }
-
-    showToast(`${name} added!`, 'success');
-}
-
-function updateCartUI() {
-    const count = cart.reduce((acc, item) => acc + item.qty, 0);
-    const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-
-    const badge = document.getElementById('cart-count-badge');
-    if (badge) {
-        badge.textContent = count;
-        badge.style.display = count > 0 ? 'flex' : 'none';
-    }
-
-    const cartList = document.getElementById('cart-items-list');
-    const totalEl = document.getElementById('cart-total');
-    if (totalEl) totalEl.textContent = `₹${total}`;
-
-    if (cartList) {
-        if (cart.length === 0) {
-            cartList.innerHTML = `
-                <div class="text-center py-5 text-muted">
-                    <i class="fas fa-shopping-basket fa-3x mb-3 opacity-20"></i>
-                    <p>Your cart is empty</p>
-                </div>`;
-            return;
-        }
-
-        cartList.innerHTML = cart.map(item => `
-            <div class="cart-item">
-                <div>
-                    <div class="fw-bold">${item.name}</div>
-                    <div class="small text-muted">₹${item.price} each</div>
-                </div>
-                <div class="quantity-control">
-                    <button class="qty-btn" onclick="updateQty('${item.id}', -1)">-</button>
-                    <span class="fw-bold">${item.qty}</span>
-                    <button class="qty-btn" onclick="updateQty('${item.id}', 1)">+</button>
-                </div>
-            </div>
-        `).join('');
     }
 }
 
-function updateQty(id, delta) {
-    const item = cart.find(i => i.id === id);
-    if (!item) return;
-    item.qty += delta;
-    if (item.qty <= 0) {
-        cart = cart.filter(i => i.id !== id);
-    }
-    updateCartUI();
-}
+// --- Sales & Payment Logic ---
+function openPaymentModal(itemId, itemName) {
+    pendingSaleItemId = itemId;
+    document.getElementById('payment-modal-item-name').textContent = itemName;
+    document.getElementById('payment-selection-ui').style.display = 'block';
+    document.getElementById('payment-success-ui').style.display = 'none';
 
-function toggleCart() {
-    const panel = document.getElementById('cart-panel');
-    const overlay = document.getElementById('cart-overlay');
-    if (panel.classList.contains('open')) {
-        panel.classList.remove('open');
-        overlay.style.display = 'none';
-    } else {
-        panel.classList.add('open');
-        overlay.style.display = 'block';
-        updateCartUI();
-    }
-}
-
-async function completeCartSale() {
-    if (cart.length === 0) {
-        showToast('Cart is empty!', 'warning');
-        return;
-    }
-
-    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
-
-    try {
-        showToast('Processing sale...', 'info');
-
-        for (const item of cart) {
-            for (let i = 0; i < item.qty; i++) {
-                await fetch('/api/record-sale', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        item_id: item.id,
-                        payment_method: paymentMethod
-                    })
-                });
-            }
-        }
-
-        showToast('Order completed successfully!', 'success');
-        cart = [];
-        updateCartUI();
-        toggleCart();
-
-    } catch (error) {
-        showToast('Error processing order', 'danger');
-    }
-}
-
-// --- Admin Logic ---
-function openPriceModal(itemId, itemName, currentPrice) {
-    pendingPriceItemId = itemId;
-    document.getElementById('price-modal-item-name').textContent = itemName;
-    document.getElementById('current-item-price-display').value = `₹${parseFloat(currentPrice).toFixed(2)}`;
-    document.getElementById('new-item-price').value = currentPrice;
-    document.getElementById('is-offer-switch').checked = false;
-    document.getElementById('price-change-reason').value = '';
-
-    const modalEl = document.getElementById('priceModal');
-    const modal = new bootstrap.Modal(modalEl);
+    const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
     modal.show();
 }
 
-async function saveNewPrice() {
-    if (!pendingPriceItemId) return;
-
-    const newPrice = document.getElementById('new-item-price').value;
-    const isOffer = document.getElementById('is-offer-switch').checked;
-    const reason = document.getElementById('price-change-reason').value;
-
-    if (!newPrice || parseFloat(newPrice) <= 0) {
-        showToast('Please enter a valid price greater than 0', 'warning');
-        return;
-    }
-
+async function confirmSale(method) {
+    if (!pendingSaleItemId) return;
     try {
-        const response = await fetch(`/api/admin/update-price/${pendingPriceItemId}`, {
-            method: 'PUT',
+        const response = await fetch('/api/record-sale', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                price: parseFloat(newPrice),
-                is_offer: isOffer,
-                reason: reason
-            })
+            body: JSON.stringify({ item_id: pendingSaleItemId, payment_method: method })
         });
 
         if (response.ok) {
-            showToast('Price updated successfully!', 'success');
-            const modalEl = document.getElementById('priceModal');
-            const modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) modal.hide();
-            loadMenuItems();
+            document.getElementById('payment-selection-ui').style.display = 'none';
+            document.getElementById('payment-success-ui').style.display = 'block';
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+                loadDailyDashboard();
+            }, 1000);
         } else {
-            const errorData = await response.json();
-            showToast(errorData.error || 'Failed to update price', 'danger');
+            showToast('Failed to record sale', 'danger');
         }
     } catch (error) {
         showToast('Server error', 'danger');
-    } finally {
-        pendingPriceItemId = null;
     }
 }
 
-// --- Other Utilities ---
-let activeUploadItemId = null;
-function triggerUpload(event, itemId) {
-    event.stopPropagation();
-    activeUploadItemId = itemId;
-    document.getElementById('global-file-input').click();
-}
+// --- Admin Item Management Logic ---
+async function loadAdminItems() {
+    const tbody = document.getElementById('admin-items-body');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
 
-function setupUploadHandlers() {
-    const fileInput = document.getElementById('global-file-input');
-    if (!fileInput) return;
-
-    fileInput.addEventListener('change', async (event) => {
-        const file = event.target.files[0];
-        if (!file || !activeUploadItemId) return;
-
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('item_id', activeUploadItemId);
-
-        try {
-            showToast('Uploading...', 'info');
-            const response = await fetch('/api/upload-image', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (response.ok) {
-                showToast('Uploaded!', 'success');
-                loadMenuItems();
-            } else {
-                showToast('Upload failed', 'danger');
-            }
-        } catch (error) {
-            showToast('Upload error', 'danger');
-        } finally {
-            fileInput.value = '';
-            activeUploadItemId = null;
-        }
-    });
-}
-
-function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
-    const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    const icon = document.querySelector('.theme-toggle i');
-    if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
-}
-
-if (localStorage.getItem('theme') === 'dark') {
-    document.body.classList.add('dark-mode');
-    document.addEventListener('DOMContentLoaded', () => {
-        const icon = document.querySelector('.theme-toggle i');
-        if (icon) icon.className = 'fas fa-sun';
-    });
-}
-
-async function loadDailyDashboard() {
-    const dateInput = document.getElementById('daily-date-filter');
-    if (!dateInput) return;
-    const date = dateInput.value;
-    const response = await fetch(`/api/daily-dashboard?date=${date}`);
-    const summary = await response.json();
-
-    document.getElementById('daily-revenue').textContent = `₹${(summary.total_revenue || 0).toFixed(2)}`;
-    document.getElementById('daily-orders').textContent = summary.order_count || 0;
-    document.getElementById('daily-phonepe').textContent = `₹${(summary.phonepe_amount || 0).toFixed(2)}`;
-    document.getElementById('daily-cash').textContent = `₹${(summary.cash_amount || 0).toFixed(2)}`;
-}
-
-async function loadMonthlyDashboard() {
-    const monthSelect = document.getElementById('monthly-month-filter');
-    const yearSelect = document.getElementById('monthly-year-filter');
-    if (!monthSelect || !yearSelect) return;
-
-    const month = monthSelect.value;
-    const year = yearSelect.value;
-
-    const response = await fetch(`/api/monthly-dashboard?month=${month}&year=${year}`);
-    const summary = await response.json();
-
-    document.getElementById('monthly-revenue').textContent = `₹${(summary.total_revenue || 0).toFixed(2)}`;
-    document.getElementById('monthly-orders').textContent = summary.order_count || 0;
-    document.getElementById('monthly-phonepe').textContent = `₹${(summary.phonepe_amount || 0).toFixed(2)}`;
-    document.getElementById('monthly-cash').textContent = `₹${(summary.cash_amount || 0).toFixed(2)}`;
-}
-
-async function loadYearlyDashboard() {
-    const response = await fetch('/api/yearly-dashboard');
-    const summary = await response.json();
-
-    document.getElementById('yearly-revenue').textContent = `₹${(summary.total_revenue || 0).toFixed(2)}`;
-    document.getElementById('yearly-orders').textContent = summary.order_count || 0;
-    document.getElementById('yearly-phonepe').textContent = `₹${(summary.phonepe_amount || 0).toFixed(2)}`;
-    document.getElementById('yearly-cash').textContent = `₹${(summary.cash_amount || 0).toFixed(2)}`;
-}
-
-async function loadStaffPerformance() {
     try {
-        const date = document.getElementById('staff-date-filter').value;
-        const monthFilter = document.getElementById('staff-month-filter');
-        const yearFilter = document.getElementById('staff-year-filter');
-
-        const month = monthFilter ? monthFilter.value : '';
-        const year = yearFilter ? yearFilter.value : '';
-
-        let queryParams = [];
-        if (date) queryParams.push(`date=${date}`);
-        if (month) queryParams.push(`month=${month}`);
-        if (year) queryParams.push(`year=${year}`);
-
-        const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
-        const response = await fetch(`/api/admin/staff-performance${queryString}`);
-        const data = await response.json();
-        const tbody = document.getElementById('staff-performance-body');
-        if (!tbody) return;
+        const response = await fetch('/api/admin/menu-items');
+        const items = await response.json();
         tbody.innerHTML = '';
 
-        if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No sales found</td></tr>';
-            return;
-        }
-
-        data.forEach((staff, index) => {
+        items.forEach(item => {
             const tr = document.createElement('tr');
-            let statusBadge = '';
-            if (index === 0) statusBadge = '<span class="badge bg-warning text-dark"><i class="fas fa-crown me-1"></i> Winner</span>';
-            else if (index === 1) statusBadge = '<span class="badge bg-secondary"><i class="fas fa-star me-1"></i> Star</span>';
-            else statusBadge = '<span class="badge bg-light text-muted">Reliable</span>';
-
             tr.innerHTML = `
-                <td class="ps-4 fw-bold">
+                <td class="ps-4">
                     <div class="d-flex align-items-center">
-                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px; font-size: 0.8rem;">
-                            ${staff._id.substring(0, 2).toUpperCase()}
-                        </div>
-                        ${staff._id || 'Unknown'}
+                        <img src="${item.image_url || 'https://via.placeholder.com/40'}" class="admin-item-thumb me-3">
+                        <span class="fw-bold">${item.name}</span>
                     </div>
                 </td>
-                <td><div class="fw-bold">${staff.total_sales}</div><small class="text-muted">Total Orders</small></td>
-                <td class="text-success fw-bold">₹${(staff.total_revenue || 0).toFixed(2)}</td>
-                <td>${statusBadge}</td>
+                <td><span class="badge bg-light text-dark">${item.category}</span></td>
+                <td class="fw-bold">₹${item.price}</td>
+                <td>${item.order_count || 0}</td>
+                <td>
+                    <button class="btn btn-toggle-active ${item.is_active ? 'btn-success' : 'btn-outline-secondary'}" 
+                        onclick="toggleItemStatus('${item.item_id}')">
+                        ${item.is_active ? 'Active' : 'Hidden'}
+                    </button>
+                </td>
+                <td class="text-end pe-4">
+                    <button class="btn btn-sm btn-outline-primary me-2" onclick='openItemEditModal(${JSON.stringify(item)})'>
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
             `;
             tbody.appendChild(tr);
         });
-    } catch (error) {
-        showToast('Error loading performance', 'danger');
+    } catch (e) {
+        showToast('Error loading items', 'danger');
     }
 }
 
-function resetStaffFilters() {
-    const dFilter = document.getElementById('staff-date-filter');
-    if (dFilter) dFilter.value = '';
-    const monthFilter = document.getElementById('staff-month-filter');
-    const yearFilter = document.getElementById('staff-year-filter');
-    if (monthFilter) monthFilter.value = '';
-    if (yearFilter) yearFilter.value = '';
-    loadStaffPerformance();
+function openItemEditModal(item = null) {
+    const form = document.getElementById('itemEditForm');
+    form.reset();
+    document.getElementById('itemModalTitle').textContent = item ? 'Edit Item' : 'Add New Item';
+    document.getElementById('edit-item-preview').src = item?.image_url || 'https://via.placeholder.com/50';
+
+    if (item) {
+        document.getElementById('edit-item-id').value = item.item_id;
+        document.getElementById('edit-item-name').value = item.name;
+        document.getElementById('edit-item-category').value = item.category;
+        document.getElementById('edit-item-price').value = item.price;
+    } else {
+        document.getElementById('edit-item-id').value = '';
+    }
+
+    new bootstrap.Modal(document.getElementById('itemEditModal')).show();
 }
 
-function showToast(message, type = 'success') {
+async function saveItemChanges() {
+    const itemId = document.getElementById('edit-item-id').value;
+    const name = document.getElementById('edit-item-name').value;
+    const category = document.getElementById('edit-item-category').value;
+    const price = document.getElementById('edit-item-price').value;
+    const imageFile = document.getElementById('edit-item-image').files[0];
+
+    if (!name || !price) return showToast('Please fill required fields', 'warning');
+
+    const data = { name, category, price: parseFloat(price) };
+
+    try {
+        let finalImageUrl = null;
+        if (imageFile) {
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            formData.append('item_id', itemId || 'new');
+            const uploadRes = await fetch('/api/upload-image', { method: 'POST', body: formData });
+            if (uploadRes.ok) {
+                const uploadData = await uploadRes.json();
+                data.image_url = uploadData.image_url;
+            }
+        }
+
+        const method = itemId ? 'PUT' : 'POST';
+        const url = itemId ? `/api/admin/item/${itemId}` : '/api/admin/item';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showToast('Item saved successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('itemEditModal')).hide();
+            loadAdminItems();
+            loadMenuItems();
+        }
+    } catch (e) {
+        showToast('Failed to save item', 'danger');
+    }
+}
+
+async function toggleItemStatus(itemId) {
+    try {
+        const response = await fetch(`/api/admin/item/${itemId}`, { method: 'DELETE' });
+        if (response.ok) {
+            loadAdminItems();
+            loadMenuItems();
+        }
+    } catch (e) {
+        showToast('Error toggling status', 'danger');
+    }
+}
+
+// --- Utilities ---
+function handleSearch(q) {
+    activeSearchQuery = q.trim();
+    loadMenuItems();
+}
+
+function filterMenu(cat, el) {
+    activeCategory = cat;
+    document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    loadMenuItems();
+}
+
+function showToast(msg, type = 'success') {
     const toastEl = document.getElementById('liveToast');
-    const toastMsg = document.getElementById('toast-message');
-    if (!toastEl || !toastMsg) return;
-
+    document.getElementById('toast-message').textContent = msg;
     toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
-    toastMsg.textContent = message;
-
-    const toast = new bootstrap.Toast(toastEl);
-    toast.show();
+    new bootstrap.Toast(toastEl).show();
 }
 
 function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar) sidebar.classList.toggle('active');
+    document.getElementById('sidebar')?.classList.toggle('active');
 }
 
-function setupTooltips() {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+function setupUploadHandlers() { }
+function setupTooltips() { }
+
+// Dashboard loading functions (restored)
+async function loadDailyDashboard() {
+    const date = document.getElementById('daily-date-filter')?.value || new Date().toISOString().split('T')[0];
+    const res = await fetch(`/api/daily-dashboard?date=${date}`);
+    const data = await res.json();
+    document.getElementById('daily-revenue').textContent = `₹${data.total_revenue.toFixed(2)}`;
+    document.getElementById('daily-orders').textContent = data.order_count;
+    document.getElementById('daily-phonepe').textContent = `₹${data.phonepe_amount.toFixed(0)}`;
+    document.getElementById('daily-cash').textContent = `₹${data.cash_amount.toFixed(0)}`;
+}
+
+async function loadMonthlyDashboard() {
+    const m = document.getElementById('monthly-month-filter').value;
+    const y = document.getElementById('monthly-year-filter').value;
+    const res = await fetch(`/api/monthly-dashboard?month=${m}&year=${y}`);
+    const data = await res.json();
+    document.getElementById('monthly-revenue').textContent = `₹${data.total_revenue.toLocaleString()}`;
+    document.getElementById('monthly-orders').textContent = data.order_count;
+}
+
+async function loadStaffPerformance() {
+    const res = await fetch('/api/admin/staff-performance');
+    const data = await res.json();
+    const tbody = document.getElementById('staff-performance-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(s => `
+        <tr>
+            <td class="ps-4 fw-bold">${s._id}</td>
+            <td>${s.total_sales}</td>
+            <td class="text-success fw-bold">₹${s.total_revenue}</td>
+            <td><span class="badge bg-light text-dark">Staff</span></td>
+        </tr>
+    `).join('');
 }

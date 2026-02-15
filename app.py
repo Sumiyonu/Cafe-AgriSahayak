@@ -58,8 +58,11 @@ menu_items.create_index("name", unique=True)
 def sync_menu_items():
     from datetime import datetime
     
-    # 1. Force Activate ALL existing items in the collection
-    menu_items.update_many({}, {"$set": {"is_active": True}})
+    # 1. Initialize default fields for existing items if they don't exist
+    menu_items.update_many({"is_active": {"$exists": False}}, {"$set": {"is_active": True}})
+    menu_items.update_many({"order_count": {"$exists": False}}, {"$set": {"order_count": 0}})
+    menu_items.update_many({"created_at": {"$exists": False}}, {"$set": {"created_at": datetime.now()}})
+    menu_items.update_many({"updated_at": {"$exists": False}}, {"$set": {"updated_at": datetime.now()}})
     
     # 2. Get existing names
     existing_names = set(
@@ -508,28 +511,101 @@ def get_menu_items():
         search_query = request.args.get('search')
         category = request.args.get('category', 'All')
         
-        query = {"is_active": True}
+        # Only show active items for sales entry
+        query = {"is_active": {"$ne": False}}
         
-        # Apply category filter
         if category and category != 'All':
             query["category"] = category
             
-        # Apply search filter
         if search_query:
             search_regex = {"$regex": search_query, "$options": "i"}
             if "category" in query:
-                # If category is already filtered, just search in name
                 query["name"] = search_regex
             else:
-                # Search in both name and category
-                query["$or"] = [
-                    {"name": search_regex},
-                    {"category": search_regex}
-                ]
+                query["$or"] = [{"name": search_regex}, {"category": search_regex}]
         
-        # Sort by order_count descending (most ordered first)
+        # Sort by most sold first (Existing requirement)
         items = list(menu_items.find(query, {"_id": 0}).sort("order_count", -1))
         return jsonify(items)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/menu-items', methods=['GET'])
+@admin_required
+def admin_get_menu_items():
+    try:
+        # Admin gets everything, sorted by creation or name
+        items = list(menu_items.find({}, {"_id": 0}).sort("item_id", 1))
+        return jsonify(items)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/item', methods=['POST'])
+@admin_required
+def add_item():
+    try:
+        data = request.json
+        name = data.get('name')
+        category = data.get('category')
+        price = float(data.get('price', 0))
+        
+        if not name or not category:
+            return jsonify({"error": "Name and Category are required"}), 400
+            
+        # Get next ID
+        last_item = menu_items.find_one(sort=[("item_id", -1)])
+        next_id = (last_item["item_id"] + 1) if last_item else 1
+        
+        new_item = {
+            "item_id": next_id,
+            "name": name,
+            "category": category,
+            "price": price,
+            "description": data.get('description', ''),
+            "image_url": data.get('image_url', ''),
+            "order_count": 0,
+            "is_active": True,
+            "created_at": datetime.now(),
+            "updated_at": datetime.now()
+        }
+        
+        menu_items.insert_one(new_item)
+        return jsonify({"message": "Item added successfully", "item_id": next_id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/admin/item/<int:item_id>', methods=['PUT', 'DELETE'])
+@admin_required
+def update_item_full(item_id):
+    try:
+        if request.method == 'DELETE':
+            # Soft delete (toggle is_active)
+            item = menu_items.find_one({"item_id": item_id})
+            if not item: return jsonify({"error": "Item not found"}), 404
+            
+            new_status = not item.get("is_active", True)
+            menu_items.update_one({"item_id": item_id}, {"$set": {"is_active": new_status, "updated_at": datetime.now()}})
+            return jsonify({"message": f"Item {'disabled' if not new_status else 'enabled'} successfully", "is_active": new_status})
+
+        # PUT (Update)
+        data = request.json
+        update_data = {
+            "name": data.get('name'),
+            "category": data.get('category'),
+            "price": float(data.get('price', 0)),
+            "description": data.get('description', ''),
+            "is_active": data.get('is_active', True),
+            "updated_at": datetime.now()
+        }
+        
+        if data.get('image_url'):
+            update_data["image_url"] = data.get('image_url')
+
+        result = menu_items.update_one({"item_id": item_id}, {"$set": update_data})
+        if result.matched_count == 0:
+            return jsonify({"error": "Item not found"}), 404
+            
+        return jsonify({"message": "Item updated successfully"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -541,17 +617,10 @@ def record_sale():
         item_id = data.get('item_id')
         payment_method = data.get('payment_method', 'Cash')
         
-        if payment_method not in ['Cash', 'PhonePe']:
-            return jsonify({"error": "Invalid payment method. Only Cash and PhonePe are allowed."}), 400
+        if payment_method not in ['Cash', 'PhonePe', 'UPI']:
+            return jsonify({"error": "Invalid payment method"}), 400
 
-        # Handle both string and integer IDs for robustness
-        item = menu_items.find_one({"item_id": item_id})
-        if not item:
-            try:
-                item = menu_items.find_one({"item_id": int(item_id)})
-            except (ValueError, TypeError):
-                pass
-                
+        item = menu_items.find_one({"item_id": int(item_id)})
         if not item:
             return jsonify({"error": "Item not found"}), 404
         
@@ -571,11 +640,9 @@ def record_sale():
         }
         
         sales.insert_one(sale)
+        menu_items.update_one({"item_id": int(item_id)}, {"$inc": {"order_count": 1}})
         
-        # Increment order_count for the item
-        menu_items.update_one({"item_id": item_id}, {"$inc": {"order_count": 1}})
-        
-        return jsonify({"message": "Sale recorded successfully", "sale": format_doc(sale)})
+        return jsonify({"message": "Sale recorded successfully"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -583,22 +650,17 @@ def record_sale():
 @admin_required
 def staff_performance():
     try:
-        # Get filters from query params
         date_filter = request.args.get('date')
         month_filter = request.args.get('month')
         year_filter = request.args.get('year')
         
         match_query = {}
-        if date_filter:
-            match_query["date"] = date_filter
-        if month_filter:
-            match_query["month"] = month_filter
-        if year_filter:
-            match_query["year"] = year_filter
+        if date_filter: match_query["date"] = date_filter
+        if month_filter: match_query["month"] = month_filter
+        if year_filter: match_query["year"] = year_filter
             
         pipeline = []
-        if match_query:
-            pipeline.append({"$match": match_query})
+        if match_query: pipeline.append({"$match": match_query})
             
         pipeline.extend([
             {"$group": {
@@ -619,7 +681,6 @@ def staff_performance():
 def daily_dashboard():
     try:
         target_date = request.args.get('date', datetime.now().strftime("%Y-%m-%d"))
-        
         pipeline = [
             {"$match": {"date": target_date}},
             {"$group": {
@@ -627,12 +688,12 @@ def daily_dashboard():
                 "total_revenue": {"$sum": "$price"},
                 "order_count": {"$sum": 1},
                 "cash_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "Cash"]}, "$price", 0]}},
-                "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}}
+                "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}},
+                "upi_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "UPI"]}, "$price", 0]}}
             }}
         ]
-        
         stats = list(sales.aggregate(pipeline))
-        summary = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
+        summary = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0, "upi_amount": 0}
         return jsonify(summary)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -644,7 +705,6 @@ def monthly_dashboard():
         now = datetime.now()
         month = request.args.get('month', now.strftime("%m"))
         year = request.args.get('year', now.strftime("%Y"))
-        
         pipeline = [
             {"$match": {"month": month, "year": year}},
             {"$group": {
@@ -652,11 +712,12 @@ def monthly_dashboard():
                 "total_revenue": {"$sum": "$price"},
                 "order_count": {"$sum": 1},
                 "cash_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "Cash"]}, "$price", 0]}},
-                "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}}
+                "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}},
+                "upi_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "UPI"]}, "$price", 0]}}
             }}
         ]
         stats = list(sales.aggregate(pipeline))
-        summary = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
+        summary = stats[0] if stats else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0, "upi_amount": 0}
         return jsonify(summary)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -673,11 +734,12 @@ def yearly_dashboard():
                 "total_revenue": {"$sum": "$price"},
                 "order_count": {"$sum": 1},
                 "cash_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "Cash"]}, "$price", 0]}},
-                "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}}
+                "phonepe_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "PhonePe"]}, "$price", 0]}},
+                "upi_amount": {"$sum": {"$cond": [{"$eq": ["$payment_method", "UPI"]}, "$price", 0]}}
             }}
         ]
         overall = list(sales.aggregate(pipeline))
-        summary = overall[0] if overall else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0}
+        summary = overall[0] if overall else {"total_revenue": 0, "order_count": 0, "cash_amount": 0, "phonepe_amount": 0, "upi_amount": 0}
         return jsonify(summary)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -686,14 +748,7 @@ def yearly_dashboard():
 @admin_required
 def time_intelligence():
     try:
-        pipeline = [
-            {"$group": {
-                "_id": "$time_slot",
-                "revenue": {"$sum": "$price"},
-                "count": {"$sum": 1}
-            }}
-        ]
-        
+        pipeline = [{"$group": {"_id": "$time_slot", "revenue": {"$sum": "$price"}, "count": {"$sum": 1}}}]
         data = list(sales.aggregate(pipeline))
         return jsonify(data)
     except Exception as e:
@@ -702,3 +757,4 @@ def time_intelligence():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+

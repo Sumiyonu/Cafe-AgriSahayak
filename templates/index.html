@@ -25,8 +25,8 @@
             --glass: rgba(255, 255, 255, 0.8);
             --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.05);
             --shadow-hover: 0 15px 45px rgba(0, 0, 0, 0.1);
-            --radius: 16px;
-            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --radius: 12px;
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body.dark-mode {
@@ -191,14 +191,60 @@
         }
 
         .menu-item-card:hover {
-            transform: translateY(-12px) scale(1.02);
+            transform: translateY(-5px);
             box-shadow: var(--shadow-hover);
             border-color: var(--accent);
         }
 
+        /* Compact Item Row Layout (Mobile) */
+        .item-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            background: var(--card-bg);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .item-row:active {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .item-row-img {
+            width: 55px;
+            height: 55px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-right: 15px;
+            background: #eee;
+        }
+
+        .item-row-info {
+            flex-grow: 1;
+        }
+
+        .item-row-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+
+        .item-row-price {
+            font-size: 0.85rem;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .item-row-action {
+            color: var(--primary);
+            font-size: 1.1rem;
+            opacity: 0.5;
+        }
+
         .item-img-container {
             width: 100%;
-            height: 200px;
+            height: 160px;
             position: relative;
             background: #eee;
             overflow: hidden;
@@ -585,9 +631,42 @@
             transition: all 0.3s;
         }
 
-        /* --- MOBILE UPGRADE STYLES --- */
+        /* Admin Items Management Styles */
+        .admin-item-thumb {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            object-fit: cover;
+        }
 
-        /* Mobile Sticky Header */
+        .btn-toggle-active {
+            padding: 4px 10px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-dots-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            padding: 5px;
+            display: none;
+        }
+
+        @media (max-width: 992px) {
+            .nav-dots-btn {
+                display: block;
+            }
+        }
+
         .mobile-header-bar {
             display: none;
             position: fixed;
@@ -599,8 +678,15 @@
             color: white;
             z-index: 1010;
             align-items: center;
-            padding: 0 1rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .mobile-header-bar .nav-dots-btn {
+            background: none;
+            border: none;
+            color: white;
+            padding: 5px;
         }
 
         .back-btn-mobile {
@@ -703,30 +789,15 @@
                 display: none !important;
             }
 
-            .mobile-header-bar {
-                display: flex;
-                position: sticky;
-                top: 0;
-                z-index: 1000;
+            .search-section-wrapper {
+                background: var(--bg);
+                padding: 10px 0;
+                margin-bottom: 5px;
             }
 
             .category-slider-wrapper {
-                position: sticky;
-                top: 64px;
-                z-index: 999;
-                padding: 10px;
                 background: var(--bg);
-                margin: 0;
-                border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-            }
-
-            .search-section-wrapper {
-                position: sticky;
-                top: 130px;
-                z-index: 998;
-                padding: 10px;
-                background: var(--bg);
-                margin: 0;
+                padding: 10px 0;
             }
 
             .menu-grid {
@@ -750,84 +821,7 @@
             }
         }
 
-        /* Animations */
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.2);
-            }
-
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        .pulse {
-            animation: pulse 0.3s ease-in-out;
-        }
-
-        /* Cart Slide-Up Panel */
-        .cart-panel {
-            position: fixed;
-            bottom: -100%;
-            left: 0;
-            right: 0;
-            background: var(--card-bg);
-            z-index: 2000;
-            border-radius: 24px 24px 0 0;
-            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1);
-            transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            max-height: 85vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .cart-panel.open {
-            bottom: 0;
-        }
-
-        .cart-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1999;
-            display: none;
-            backdrop-filter: blur(2px);
-        }
-
-        .cart-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .cart-items-list {
-            overflow-y: auto;
-            padding: 1rem;
-            flex-grow: 1;
-        }
-
-        .cart-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        }
-
-        .cart-footer {
-            padding: 1.5rem;
-            background: var(--bg);
-            border-top: 1px solid rgba(0, 0, 0, 0.05);
-        }
+        /* ... rest of styles ... */
 
         .bottom-nav {
             position: fixed;
@@ -964,102 +958,91 @@
 </head>
 
 <body>
-    <!-- Mobile Top Header Bar -->
-    <header class="mobile-header-bar">
-        <button class="back-btn-mobile" onclick="handleSmartBack()" id="mobile-back-btn">
-            <i class="fas fa-arrow-left"></i>
+    <div class="mobile-header-bar">
+        <div class="d-flex align-items-center">
+            <button class="btn text-white p-0 me-3 fs-3" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h5 class="mb-0 fw-bold" id="mobile-current-page">Menu & Sales</h5>
+        </div>
+        <button class="nav-dots-btn" onclick="toggleSidebar()">
+            <i class="fas fa-ellipsis-v"></i>
         </button>
-        <div class="mobile-page-title-center" id="mobile-current-page">Sales Entry</div>
-        <button class="back-btn-mobile ms-auto" onclick="toggleSidebar()">
-            <i class="fas fa-bars"></i>
-        </button>
-    </header>
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-coffee"></i>
+            <h4 class="fw-bold mb-0">AGRI SAHAYAK</h4>
+            <p class="small opacity-75 mb-0">Premium Café Lounge</p>
+        </div>
+        <nav class="mt-4">
+            <a href="javascript:void(0)" class="nav-link active" onclick="navigateTo('sales-entry')">
+                <i class="fas fa-cash-register"></i> Sales Entry
+            </a>
+            {% if current_user.role == 'admin' %}
+            <a href="javascript:void(0)" class="nav-link" onclick="navigateTo('admin-items-view')">
+                <i class="fas fa-boxes"></i> Item Management
+            </a>
+            <a href="javascript:void(0)" class="nav-link" onclick="navigateTo('daily-view')">
+                <i class="fas fa-chart-line"></i> Daily Analytics
+            </a>
+            <a href="javascript:void(0)" class="nav-link" onclick="navigateTo('monthly-view')">
+                <i class="fas fa-calendar-alt"></i> Monthly Dashboard
+            </a>
+            <a href="javascript:void(0)" class="nav-link" onclick="navigateTo('staff-performance-view')">
+                <i class="fas fa-users"></i> Staff Ranking
+            </a>
+            <a href="javascript:void(0)" class="nav-link" onclick="window.location.href='/user-management'">
+                <i class="fas fa-user-shield"></i> User Admin
+            </a>
+            {% else %}
+            <a href="javascript:void(0)" class="nav-link" onclick="navigateTo('daily-view')">
+                <i class="fas fa-history"></i> My Sales History
+            </a>
+            {% endif %}
+            <div class="px-4 mt-5">
+                <hr class="opacity-10">
+                <a href="/logout" class="nav-link text-white-50 bg-danger bg-opacity-10 mt-2">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </nav>
+    </aside>
 
     <!-- Theme Toggle -->
     <button class="theme-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
         <i class="fas fa-moon"></i>
     </button>
 
-    <!-- Sidebar -->
-    <nav id="sidebar">
-        <div class="sidebar-header">
-            <i class="fas fa-coffee"></i>
-            <h3>Café Pro</h3>
-            <p class="small text-white-50">Enterprise Management</p>
-
-            <div class="mt-3 p-2 rounded bg-white bg-opacity-10">
-                <div class="d-flex align-items-center justify-content-center">
-                    <div class="text-start">
-                        <div class="small fw-bold">{{ current_user.username }}</div>
-                        <span class="badge {{ 'bg-danger' if current_user.role == 'admin' else 'bg-success' }} x-small"
-                            style="font-size: 0.6rem;">
-                            {{ current_user.role|upper }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="nav flex-column mt-4">
-            <a href="javascript:void(0)" class="nav-link active" onclick="navigateTo('sales-entry')">
-                <i class="fas fa-cash-register"></i> Sales Entry
-            </a>
-
-            <a href="javascript:void(0)" class="nav-link" onclick="navigateTo('daily-view')">
-                <i class="fas fa-calendar-day"></i> Daily Dashboard
-            </a>
-
-            {% if current_user.role == 'admin' %}
-            <a href="javascript:void(0)" class="nav-link" onclick="navigateTo('monthly-view')">
-                <i class="fas fa-calendar-alt"></i> Monthly Dashboard
-            </a>
-            <a href="javascript:void(0)" class="nav-link" onclick="navigateTo('yearly-view')">
-                <i class="fas fa-layer-group"></i> Yearly Dashboard
-            </a>
-            <a href="javascript:void(0)" class="nav-link" onclick="navigateTo('staff-performance-view')">
-                <i class="fas fa-chart-line"></i> Staff Performance
-            </a>
-            <a href="/admin/users" class="nav-link">
-                <i class="fas fa-users-cog"></i> User Management
-            </a>
-            {% endif %}
-
-            <hr class="mx-3 bg-white bg-opacity-25">
-
-            <a href="/logout" class="nav-link text-warning">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </a>
-        </div>
-    </nav>
-
     <!-- Main Content -->
     <main id="content">
         <div class="d-flex justify-content-between align-items-center mb-4 desktop-only-header">
-            <h2 id="page-title">Sales Entry</h2>
-            <div class="d-flex align-items-center">
-                <span class="badge bg-white text-dark p-2 me-3 shadow-sm" id="current-datetime"></span>
-                <button class="btn btn-outline-dark d-none mobile-toggle" onclick="toggleSidebar()">
-                    <i class="fas fa-bars"></i>
-                </button>
+            <h2 id="page-title" class="fw-bold mb-0 text-brown">Sales Entry</h2>
+            <div class="header-actions">
+                <div class="text-end me-3">
+                    <div class="fw-bold">{{ current_user.username }}</div>
+                    <span class="badge {{ 'bg-danger' if current_user.role == 'admin' else 'bg-success' }} small">
+                        {{ current_user.role|upper }}
+                    </span>
+                </div>
+                <div id="current-datetime" class="badge bg-light text-dark p-2"></div>
             </div>
         </div>
 
         <!-- Sales Entry Section -->
         <section id="sales-entry" class="dashboard-section active">
-            <!-- Search Bar Section -->
             <div class="search-section-wrapper">
                 <div class="search-bar-container">
                     <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="item-search" placeholder="Search by name or category..."
-                        oninput="handleSearch(this.value)" autocomplete="off">
-                    <button id="clear-search" onclick="clearSearch()" style="display: none;">
-                        <i class="fas fa-times"></i>
-                    </button>
+                    <input type="text" id="item-search" placeholder="Search menu items..."
+                        oninput="handleSearch(this.value)">
                 </div>
             </div>
 
             <div class="category-slider-wrapper">
-                <div class="category-slider" id="category-list">
+                <div class="category-slider">
                     <div class="category-pill active" onclick="filterMenu('All', this)">All Items</div>
                     <div class="category-pill" onclick="filterMenu('Milkshakes', this)">Milkshakes</div>
                     <div class="category-pill" onclick="filterMenu('Ice Cream Shakes', this)">Ice Cream Shakes</div>
@@ -1068,21 +1051,12 @@
                 </div>
             </div>
 
-            <div class="menu-grid" id="menu-container">
-                <!-- Shimmer Loading State (Default) -->
-                <div class="menu-item-card shimmer" style="height: 400px;"></div>
-                <div class="menu-item-card shimmer" style="height: 400px;"></div>
-                <div class="menu-item-card shimmer" style="height: 400px;"></div>
-                <div class="menu-item-card shimmer" style="height: 400px;"></div>
+            <div id="menu-container">
+                <!-- Items injected via JS -->
             </div>
         </section>
 
-        <!-- Floating Action Button -->
-        <div class="fab" onclick="navigateTo('sales-entry')" title="Top Sellers">
-            <i class="fas fa-bolt"></i>
-        </div>
-
-        <!-- Daily Dashboard Section -->
+        <!-- Daily Dashboard -->
         <section id="daily-view" class="dashboard-section">
             <div class="row mb-4">
                 <div class="col-md-4">
@@ -1095,39 +1069,38 @@
                     <div class="stat-card">
                         <div class="stat-icon icon-orders"><i class="fas fa-box-open"></i></div>
                         <div class="stat-value" id="daily-orders">0</div>
-                        <div class="stat-label">📦 Order Count</div>
+                        <div class="stat-label">Order Count</div>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="stat-card">
                         <div class="stat-icon icon-revenue"><i class="fas fa-coins"></i></div>
-                        <div class="stat-value" id="daily-revenue">₹0.00</div>
-                        <div class="stat-label">💰 Total Revenue</div>
+                        <div class="stat-value" id="daily-revenue">₹0</div>
+                        <div class="stat-label">Total Revenue</div>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="stat-card">
-                        <div class="stat-icon icon-avg text-primary"><i class="fas fa-mobile-alt"></i></div>
-                        <div class="stat-value text-primary" id="daily-phonepe">₹0.00</div>
-                        <div class="stat-label">📱 PhonePe Amount</div>
+                        <div class="stat-icon icon-phonepe"><i class="fas fa-mobile-alt"></i></div>
+                        <div class="stat-value text-primary" id="daily-phonepe">₹0</div>
+                        <div class="stat-label">PhonePe/UPI</div>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="stat-card">
                         <div class="stat-icon icon-profit text-success"><i class="fas fa-money-bill-wave"></i></div>
-                        <div class="stat-value text-success" id="daily-cash">₹0.00</div>
-                        <div class="stat-label">💵 Cash Amount</div>
+                        <div class="stat-value text-success" id="daily-cash">₹0</div>
+                        <div class="stat-label">Cash</div>
                     </div>
                 </div>
             </div>
-            <!-- Charts Removed per Request -->
         </section>
 
-        <!-- Monthly Dashboard Section -->
+        <!-- Monthly Dashboard -->
         <section id="monthly-view" class="dashboard-section">
             <div class="row mb-4 g-3">
                 <div class="col-md-3">
-                    <label class="form-label small fw-bold text-brown">Select Month</label>
+                    <label class="form-label small fw-bold text-brown">Month</label>
                     <select id="monthly-month-filter" class="form-select" onchange="loadMonthlyDashboard()">
                         <option value="01">January</option>
                         <option value="02">February</option>
@@ -1144,99 +1117,63 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small fw-bold text-brown">Select Year</label>
-                    <select id="monthly-year-filter" class="form-select" onchange="loadMonthlyDashboard()">
-                        <!-- Years will be injected -->
-                    </select>
+                    <label class="form-label small fw-bold text-brown">Year</label>
+                    <input type="number" id="monthly-year-filter" class="form-control" value="2024"
+                        onchange="loadMonthlyDashboard()">
                 </div>
             </div>
             <div class="row g-4 mb-4">
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-orders"><i class="fas fa-receipt"></i></div>
-                        <div class="stat-value" id="monthly-orders">0</div>
-                        <div class="stat-label">📦 Order Count</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-revenue"><i class="fas fa-wallet"></i></div>
-                        <div class="stat-value" id="monthly-revenue">₹0.00</div>
-                        <div class="stat-label">💰 Monthly Revenue</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-avg text-primary"><i class="fas fa-mobile-alt"></i></div>
-                        <div class="stat-value text-primary" id="monthly-phonepe">₹0.00</div>
-                        <div class="stat-label">📱 PhonePe Amount</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-profit text-success"><i class="fas fa-piggy-bank"></i></div>
-                        <div class="stat-value text-success" id="monthly-cash">₹0.00</div>
-                        <div class="stat-label">💵 Cash Amount</div>
-                    </div>
-                </div>
-            </div>
-            <!-- Charts Removed per Request -->
-        </section>
-
-        <!-- Yearly Dashboard Section -->
-        <section id="yearly-view" class="dashboard-section">
-            <div class="row g-4 mb-4">
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-orders"><i class="fas fa-layer-group"></i></div>
-                        <div class="stat-value" id="yearly-orders">0</div>
-                        <div class="stat-label">📦 Order Count</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-revenue"><i class="fas fa-coins"></i></div>
-                        <div class="stat-value" id="yearly-revenue">₹0.00</div>
-                        <div class="stat-label">💰 Annual Revenue</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-avg text-primary"><i class="fas fa-mobile-alt"></i></div>
-                        <div class="stat-value text-primary" id="yearly-phonepe">₹0.00</div>
-                        <div class="stat-label">📱 PhonePe Amount</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-profit text-success"><i class="fas fa-money-bill-wave"></i></div>
-                        <div class="stat-value text-success" id="yearly-cash">₹0.00</div>
-                        <div class="stat-label">💵 Cash Amount</div>
+                <div class="col-md-12">
+                    <div class="stat-card text-center">
+                        <div class="stat-label">Monthly Gross Revenue</div>
+                        <div class="stat-value text-primary fs-1 my-3" id="monthly-revenue">₹0</div>
+                        <div class="stat-label">Total Orders: <span id="monthly-orders">0</span></div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Staff Performance Section -->
-        <section id="staff-performance-view" class="dashboard-section">
-            <div class="row mb-4 g-3">
-                <div class="col-md-3">
-                    <label class="form-label small fw-bold text-muted">Filter by Date</label>
-                    <input type="date" id="staff-date-filter" class="form-control" onchange="loadStaffPerformance()">
+        <!-- Admin Items View -->
+        <section id="admin-items-view" class="dashboard-section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold mb-0">Menu Management</h2>
+                    <p class="text-muted">Direct control over item prices and visibility</p>
                 </div>
-                <!-- ... other filters ... -->
+                <button class="btn btn-primary" onclick="openItemEditModal(null)"><i class="fas fa-plus me-2"></i> Add
+                    Item</button>
             </div>
+
             <div class="premium-table-card">
-                <div class="card-header bg-transparent border-0 py-3 ps-4">
-                    <h5 class="mb-0 fw-bold">Team Performance</h5>
-                    <p class="small text-muted mb-0">Live ranking based on sales volume</p>
-                </div>
                 <div class="table-responsive">
-                    <table class="table premium-table mb-0">
+                    <table class="table premium-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Item</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Orders</th>
+                                <th>Status</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-items-body">
+                            <!-- Items injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Staff Ranking -->
+        <section id="staff-performance-view" class="dashboard-section">
+            <div class="premium-table-card">
+                <div class="table-responsive">
+                    <table class="table premium-table mb-0 align-middle">
                         <thead>
                             <tr>
                                 <th class="ps-4">Staff Member</th>
-                                <th>Items Sold</th>
+                                <th>Sales Count</th>
                                 <th>Revenue</th>
                                 <th>Status</th>
                             </tr>
@@ -1248,187 +1185,93 @@
                 </div>
             </div>
         </section>
-
-
-
     </main>
 
-    <!-- Payment Confirmation Modal -->
-    <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <!-- Modals -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Confirm Payment</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Complete Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body text-center">
+                <div class="modal-body p-4 text-center">
                     <div id="payment-selection-ui">
-                        <p id="payment-modal-item-name" class="fs-4"></p>
-                        <div class="row g-4">
-                            <div class="col-6">
-                                <div class="payment-card" onclick="confirmSale('Cash', this)">
-                                    <i class="fas fa-money-bill-wave text-success"></i>
-                                    <span class="card-label">Cash</span>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="payment-card" onclick="confirmSale('PhonePe', this)">
-                                    <i class="fas fa-mobile-alt text-primary"></i>
-                                    <span class="card-label">PhonePe</span>
-                                </div>
-                            </div>
+                        <p class="text-muted mb-4">Select method for <span id="payment-modal-item-name"
+                                class="fw-bold"></span></p>
+                        <div class="d-grid gap-3">
+                            <button class="btn btn-lg btn-outline-primary p-3"
+                                onclick="confirmSale('Cash')">CASH</button>
+                            <button class="btn btn-lg btn-outline-primary p-3"
+                                onclick="confirmSale('PhonePe')">PHONEPE</button>
+                            <button class="btn btn-lg btn-outline-primary p-3" onclick="confirmSale('UPI')">UPI /
+                                SCAN</button>
                         </div>
-                    </div>
-
-                    <div id="payment-success-ui" style="display: none;">
-                        <div class="success-checkmark d-block">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <h3 class="fw-bold" style="color: #6F4E37;">Order Placed!</h3>
-                        <p class="text-muted">Transaction recorded successfully.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Price Edit Modal -->
-    <div class="modal fade" id="priceModal" tabindex="-1" aria-hidden="true">
+    <!-- Item Add/Edit Modal -->
+    <div class="modal fade" id="itemEditModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
+            <div class="modal-content border-0">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-tag me-2"></i>Update Item Price</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
+                    <h5 class="modal-title fw-bold" id="itemModalTitle">Manage Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <h5 id="price-modal-item-name" class="mb-4 text-center fw-bold">Item Name</h5>
-
-                    <div class="mb-3">
-                        <label class="form-label small text-muted">Current Price</label>
-                        <input type="text" class="form-control bg-light" id="current-item-price-display" readonly>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">New Price (₹)</label>
-                        <input type="number" class="form-control" id="new-item-price" placeholder="0.00" step="0.01"
-                            min="0">
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="is-offer-switch">
-                            <label class="form-check-label fw-bold" for="is-offer-switch">Mark as Special Offer</label>
+                    <form id="itemEditForm">
+                        <input type="hidden" id="edit-item-id">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Item Name</label>
+                            <input type="text" id="edit-item-name" class="form-control" required>
                         </div>
-                        <small class="text-muted">Will show original price with strike-through</small>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="form-label small text-muted">Reason for Change (Optional)</label>
-                        <textarea class="form-control" id="price-change-reason" rows="2"
-                            placeholder="e.g. Seasonal discount, price hike..."></textarea>
-                    </div>
-
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-save-price py-2" onclick="saveNewPrice()">
-                            <i class="fas fa-save me-2"></i>Save Changes
-                        </button>
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Category</label>
+                            <select id="edit-item-category" class="form-select" required>
+                                <option value="Milkshakes">Milkshakes</option>
+                                <option value="Ice Cream Shakes">Ice Cream Shakes</option>
+                                <option value="Snacks">Snacks</option>
+                                <option value="Combo Offers">Combo Offers</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Price (₹)</label>
+                            <input type="number" id="edit-item-price" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Image</label>
+                            <div class="d-flex align-items-center gap-3">
+                                <img id="edit-item-preview" src="" class="admin-item-thumb"
+                                    style="width: 50px; height: 50px;">
+                                <input type="file" id="edit-item-image" class="form-control" accept="image/*">
+                            </div>
+                        </div>
+                        <div class="d-grid mt-4">
+                            <button type="button" class="btn btn-primary btn-lg" onclick="saveItemChanges()">Save
+                                Item</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Toast UI -->
-    <div class="toast-container">
-        <div id="liveToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive"
-            aria-atomic="true">
-            <div class="d-flex">
-                <div class="toast-body" id="toast-message"></div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
-                    aria-label="Close"></button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Cart Slide-Up Panel -->
-    <div class="cart-overlay" id="cart-overlay" onclick="toggleCart()"></div>
-    <div class="cart-panel" id="cart-panel">
-        <div class="cart-header">
-            <h5 class="mb-0 fw-bold"><i class="fas fa-shopping-cart me-2"></i>My Cart</h5>
-            <button class="btn-close" onclick="toggleCart()"></button>
-        </div>
-        <div class="cart-items-list" id="cart-items-list">
-            <!-- Items injected via JS -->
-            <div class="text-center py-5 text-muted">
-                <i class="fas fa-shopping-basket fa-3x mb-3 opacity-20"></i>
-                <p>Your cart is empty</p>
-            </div>
-        </div>
-        <div class="cart-footer">
-            <div class="d-flex justify-content-between mb-3 fw-bold fs-5">
-                <span>Total Amount:</span>
-                <span id="cart-total">₹0</span>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label small fw-bold">Payment Method</label>
-                <div class="row g-2">
-                    <div class="col-6">
-                        <input type="radio" class="btn-check" name="payment" id="pay-cash" value="Cash" checked>
-                        <label class="btn btn-outline-success w-100 py-2" for="pay-cash">
-                            <i class="fas fa-money-bill-wave me-1"></i> Cash
-                        </label>
-                    </div>
-                    <div class="col-6">
-                        <input type="radio" class="btn-check" name="payment" id="pay-phonepe" value="PhonePe">
-                        <label class="btn btn-outline-primary w-100 py-2" for="pay-phonepe">
-                            <i class="fas fa-mobile-alt me-1"></i> PhonePe
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <button class="btn btn-save-price w-100 py-3 shadow-lg" onclick="completeCartSale()">
-                COMPLETE SALE <i class="fas fa-check-circle ms-2"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- Bottom Nav for Mobile -->
-    <div class="bottom-nav">
-        <a href="javascript:void(0)" class="bottom-nav-item active" onclick="navigateTo('sales-entry')">
-            <i class="fas fa-home"></i>
-            <span>Home</span>
-        </a>
-        <a href="javascript:void(0)" class="bottom-nav-item"
-            onclick="document.getElementById('category-list').scrollIntoView({behavior:'smooth'})">
-            <i class="fas fa-th-large"></i>
-            <span>Categories</span>
-        </a>
-        <a href="javascript:void(0)" class="bottom-nav-item" onclick="document.getElementById('item-search').focus()">
-            <i class="fas fa-search"></i>
-            <span>Search</span>
-        </a>
-        <a href="javascript:void(0)" class="bottom-nav-item" onclick="toggleCart()">
-            <i class="fas fa-shopping-cart"></i>
-            <span>Cart</span>
-            <div class="cart-badge" id="cart-count-badge" style="display: none;">0</div>
-        </a>
-        <a href="javascript:void(0)" class="bottom-nav-item" onclick="toggleSidebar()">
-            <i class="fas fa-user-circle"></i>
-            <span>Profile</span>
-        </a>
-    </div>
-
-    <!-- Hidden File Input for Uploads -->
-    <input type="file" id="global-file-input" style="display: none;" accept="image/*">
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+    <!-- Toast Notification -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 2200">
+        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body" id="toast-message">Action successful!</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
