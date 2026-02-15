@@ -2,6 +2,7 @@
 let currentTab = 'sales-entry';
 let menuItems = [];
 let pendingSaleItemId = null;
+let pendingPriceItemId = null;
 let activeCategory = 'All';
 let activeSearchQuery = '';
 
@@ -240,6 +241,8 @@ function renderMenu(items) {
     const container = document.getElementById('menu-container');
     if (!container) return;
 
+    const userRole = localStorage.getItem('user_role') || (document.querySelector('.badge.bg-danger') ? 'admin' : 'staff');
+
     container.style.opacity = '0.3';
 
     setTimeout(() => {
@@ -262,7 +265,16 @@ function renderMenu(items) {
 
             const imageUrl = item.image_url || `https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&q=80&w=400&h=300`;
 
+            const adminControls = userRole === 'admin' ? `
+                <div class="admin-controls">
+                    <button class="edit-price-btn" onclick="openPriceModal('${item.item_id}', '${(item.name || 'Item').replace(/'/g, "\\'")}', ${item.price})" title="Edit Price">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                </div>
+            ` : '';
+
             card.innerHTML = `
+                ${adminControls}
                 <div class="item-img-container">
                     <img src="${imageUrl}" alt="${item.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x300?text=${encodeURIComponent(item.name)}'">
                     <div class="img-overlay">
@@ -298,6 +310,53 @@ function openPaymentModal(itemId, itemName) {
     const modalEl = document.getElementById('paymentModal');
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
+}
+
+function openPriceModal(itemId, itemName, currentPrice) {
+    pendingPriceItemId = itemId;
+    document.getElementById('price-modal-item-name').textContent = itemName;
+    document.getElementById('new-item-price').value = currentPrice;
+
+    const modalEl = document.getElementById('priceModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+async function saveNewPrice() {
+    if (!pendingPriceItemId) return;
+
+    const newPrice = document.getElementById('new-item-price').value;
+    if (!newPrice || parseFloat(newPrice) <= 0) {
+        showToast('Please enter a valid price greater than 0', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/menu/update-price/${pendingPriceItemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                price: parseFloat(newPrice)
+            })
+        });
+
+        if (response.ok) {
+            showToast('Price updated successfully!', 'success');
+            const modalEl = document.getElementById('priceModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+
+            // Re-fetch menu items to reflect changes globally
+            loadMenuItems();
+        } else {
+            const errorData = await response.json();
+            showToast(errorData.error || 'Failed to update price', 'danger');
+        }
+    } catch (error) {
+        showToast('Server error', 'danger');
+    } finally {
+        pendingPriceItemId = null;
+    }
 }
 
 async function confirmSale(paymentMethod, element) {

@@ -433,6 +433,58 @@ def upload_image():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/menu/update-price/<int:item_id>', methods=['PUT'])
+@admin_required
+def update_price(item_id):
+    try:
+        data = request.json
+        new_price = data.get('price')
+        
+        if new_price is None:
+            return jsonify({"error": "Price is required"}), 400
+            
+        try:
+            new_price = float(new_price)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Price must be a valid number"}), 400
+            
+        if new_price <= 0:
+            return jsonify({"error": "Price must be greater than 0"}), 400
+            
+        if new_price > 10000:
+            return jsonify({"error": "Price exceeds maximum limit (10,000)"}), 400
+
+        # Find item
+        item = menu_items.find_one({"item_id": int(item_id)})
+        if not item:
+            return jsonify({"error": "Item not found"}), 404
+            
+        old_price = item.get('price', 0)
+        
+        # Update price
+        menu_items.update_one(
+            {"item_id": int(item_id)},
+            {"$set": {"price": new_price}}
+        )
+        
+        # Log the change
+        price_logs = db.price_logs
+        price_logs.insert_one({
+            "item_id": int(item_id),
+            "item_name": item['name'],
+            "old_price": old_price,
+            "new_price": new_price,
+            "changed_by": current_user.username,
+            "changed_at": datetime.now()
+        })
+        
+        return jsonify({
+            "message": "Price updated successfully",
+            "new_price": new_price
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/static/uploads/<path:filename>')
 def serve_uploads(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
